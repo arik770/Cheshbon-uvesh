@@ -103,20 +103,23 @@
   #search-box { min-width: 160px; }
   #toolbar label { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
 
-  /* TABLE */
-  #table-wrap { overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
-  thead tr { background: #f8fafc; border-bottom: 2px solid var(--border); }
-  th { padding: 10px 12px; text-align: right; font-weight: 600; color: #374151; cursor: pointer; user-select: none; white-space: nowrap; }
-  th:hover { color: var(--navy2); }
-  th .sort-arrow { opacity: .3; font-size: 11px; }
-  th.sorted .sort-arrow { opacity: 1; color: var(--navy2); }
-  tbody tr { border-bottom: 1px solid #f1f5f9; transition: background .1s; }
-  tbody tr:hover { background: #f0f4ff !important; }
-  tbody tr.future-row { background: var(--future-bg); }
-  td { padding: 8px 12px; vertical-align: middle; }
-  tfoot tr { background: #f8fafc; border-top: 2px solid var(--border); }
-  tfoot td { padding: 9px 12px; font-weight: 700; font-size: 13px; }
+  /* CARDS */
+  #cards-wrap { display: flex; flex-direction: column; gap: 8px; }
+  .tx-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; transition: box-shadow .15s; display: flex; gap: 10px; align-items: stretch; }
+  .tx-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,.09); }
+  .tx-card.future-card { background: var(--future-bg); border-color: var(--future-border); }
+  .tx-card.dragging { opacity: .4; box-shadow: 0 4px 20px rgba(0,0,0,.18); }
+  .tx-card.drag-over { border-color: var(--navy2); border-style: dashed; }
+  .tx-drag-handle { display: flex; align-items: center; cursor: grab; color: #cbd5e1; font-size: 18px; padding: 0 2px; flex-shrink: 0; touch-action: none; }
+  .tx-drag-handle:active { cursor: grabbing; }
+  .tx-card-body { flex: 1; min-width: 0; }
+  .tx-card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; }
+  .tx-card-date { font-size: 12px; color: var(--muted); }
+  .tx-card-amount { font-size: 17px; font-weight: 700; }
+  .tx-card-desc { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .tx-card-meta { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .tx-card-actions { display: flex; gap: 5px; margin-right: auto; }
+  .tx-summary { background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; margin-top: 4px; font-size: 13px; font-weight: 700; color: var(--muted); }
 
   .tag { display: inline-block; border-radius: 12px; padding: 2px 8px; font-size: 11px; font-weight: 600; white-space: nowrap; }
   .tag-cat     { background: var(--tag-bg);     color: var(--tag-color); }
@@ -134,7 +137,6 @@
   .actions-cell { display: flex; gap: 4px; justify-content: center; white-space: nowrap; }
   .confirm-del  { display: flex; gap: 5px; align-items: center; white-space: nowrap; }
   .confirm-del span { font-size: 11px; color: var(--expense); }
-  .td-meta { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
 
   #empty-state { text-align: center; padding: 50px 20px; color: var(--muted); }
   #empty-state .empty-icon { font-size: 34px; margin-bottom: 10px; }
@@ -188,8 +190,14 @@
         <div class="s-label" id="stat-expense-label">הוצאות (חודש נוכחי)</div>
         <div class="s-value s-expense" id="stat-expense">₪0.00</div>
       </div>
+      <div class="stat-block">
+        <div class="s-label">חיסכון</div>
+        <div class="s-value" id="stat-savings" style="color:#a78bfa">—</div>
+        <div style="font-size:10px;color:#5a7aaa;margin-top:2px" id="stat-savings-info"></div>
+      </div>
 
       <button class="hdr-btn" onclick="openBalanceModal()">⚖ עדכן יתרה נוכחית</button>
+      <button class="hdr-btn" onclick="openSavingsModal()">🏦 עדכן חיסכון</button>
     </div>
   </div>
 </div>
@@ -304,25 +312,14 @@
         <button class="btn-secondary" onclick="clearFilters()" style="font-size:12px;padding:7px 12px">נקה סינון</button>
       </div>
 
-      <div id="table-wrap">
-        <table id="main-table">
-          <thead><tr>
-            <th onclick="setSort('date')">תאריך <span class="sort-arrow" id="arr-date">↓</span></th>
-            <th onclick="setSort('desc')">תיאור <span class="sort-arrow" id="arr-desc">↕</span></th>
-            <th onclick="setSort('cat')">קטגוריה <span class="sort-arrow" id="arr-cat">↕</span></th>
-            <th onclick="setSort('type')">סוג <span class="sort-arrow" id="arr-type">↕</span></th>
-            <th>פרטים</th>
-            <th onclick="setSort('amount')" style="text-align:left">סכום <span class="sort-arrow" id="arr-amount">↕</span></th>
-            <th style="text-align:center">פעולות</th>
-          </tr></thead>
-          <tbody id="tbody"></tbody>
-          <tfoot id="tfoot"></tfoot>
-        </table>
-        <div id="empty-state" style="display:none">
-          <div class="empty-icon">📋</div>
-          <div>אין עסקאות להצגה</div>
-          <div style="font-size:12px;margin-top:4px">הוסף עסקה ראשונה למעלה</div>
-        </div>
+      <div id="cards-wrap">
+        <div id="tbody"></div>
+        <div id="tfoot"></div>
+      </div>
+      <div id="empty-state" style="display:none">
+        <div class="empty-icon">📋</div>
+        <div>אין עסקאות להצגה</div>
+        <div style="font-size:12px;margin-top:4px">הוסף עסקה ראשונה למעלה</div>
       </div>
     </div>
   </div>
@@ -396,6 +393,20 @@
   </div>
 </div>
 
+<!-- SAVINGS MODAL -->
+<div id="savings-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;align-items:center;justify-content:center;">
+  <div id="modal-box" style="background:#fff;border-radius:10px;padding:28px 28px 22px;width:min(440px,90vw);box-shadow:0 8px 40px rgba(0,0,0,.18);direction:rtl;">
+    <h3 style="font-size:16px;color:var(--navy);margin-bottom:6px;">🏦 עדכון יתרת חיסכון</h3>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:18px;line-height:1.5;">הכנס את יתרת החיסכון הנוכחית. האתר יחשב קדימה לפי פריטי חיסכון שיוזנו.</p>
+    <div class="field" style="margin-bottom:12px;"><label style="font-size:12px;color:var(--muted);font-weight:500;">יתרת חיסכון (₪)</label><input type="number" id="modal-savings-val" step="0.01" placeholder="לדוגמה: 12000.00" style="font-size:18px;font-weight:700;padding:10px 12px;border-radius:6px;border:1px solid #d1d5db;width:100%;direction:rtl;font-family:inherit;"></div>
+    <div class="field" style="margin-bottom:12px;"><label style="font-size:12px;color:var(--muted);font-weight:500;">תאריך ושעה של הבדיקה</label><input type="datetime-local" id="modal-savings-dt" style="padding:8px 10px;border-radius:6px;border:1px solid #d1d5db;font-size:13px;width:100%;font-family:inherit;direction:rtl;"></div>
+    <div style="display:flex;gap:10px;margin-top:18px;">
+      <button class="btn-primary" onclick="saveSavings()">שמור חיסכון</button>
+      <button class="btn-secondary" onclick="closeSavingsModal()">ביטול</button>
+    </div>
+  </div>
+</div>
+
 <div id="footer-note">הנתונים נשמרים אוטומטית בדפדפן שלך · לא נשלח שום מידע לשום שרת</div>
 
 <script>
@@ -411,6 +422,7 @@ const FREQ_MONTHS = { 'חודשי': 1, 'חודשיים': 2, 'רבעוני': 3, '
 // ─── STATE ────────────────────────────────────────────────────────────────
 let state = {
   anchor: null,
+  savingsAnchor: null,  // { value, datetime }
   transactions: [],
   categories: [...DEFAULT_CATEGORIES],
   billingStartDay: 1,
@@ -555,6 +567,21 @@ function computeBalance(upToDate) {
   return state.anchor.value + delta;
 }
 
+function computeSavings(upToDate) {
+  if (!state.savingsAnchor) return null;
+  const anchorDate = state.savingsAnchor.datetime.slice(0,10);
+  const cutoff = upToDate || todayStr();
+  let delta = 0;
+  for (const t of state.transactions) {
+    if (t.category === 'חיסכון' && t.date >= anchorDate && t.date <= cutoff) {
+      // expense → money moves FROM balance TO savings (+savings)
+      // income  → money moves FROM savings TO balance (-savings)
+      delta += t.type === 'הוצאה' ? t.amount : -t.amount;
+    }
+  }
+  return state.savingsAnchor.value + delta;
+}
+
 function updateHeader() {
   const balance    = computeBalance(todayStr());
   const { start: bpS, end: bpE } = currentBillingPeriod();
@@ -572,6 +599,19 @@ function updateHeader() {
     bv.textContent = fmt(balance); bv.className = balance >= 0 ? 'positive' : 'negative';
     const dt = new Date(state.anchor.datetime);
     bi.textContent = `מבוסס על יתרה שהוזנה ב־${dt.toLocaleDateString('he-IL')} ${dt.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})} (${fmt(state.anchor.value)})`;
+  }
+
+  // Savings
+  const savings = computeSavings(todayStr());
+  const sv = document.getElementById('stat-savings');
+  const si = document.getElementById('stat-savings-info');
+  if (savings === null) {
+    sv.textContent = '—';
+    si.textContent = 'לחץ "עדכן חיסכון" להגדרה';
+  } else {
+    sv.textContent = fmt(savings);
+    const sdt = new Date(state.savingsAnchor.datetime);
+    si.textContent = `עודכן ${sdt.toLocaleDateString('he-IL')}`;
   }
 }
 
@@ -651,42 +691,31 @@ function getFiltered() {
 }
 
 function sortRows(rows) {
-  const today = todayStr();
-  return [...rows].sort((a,b) => {
-    // When sorting by date: past/today first (desc), then future ascending
-    if (sortField==='date') {
-      const aFut = a.date > today, bFut = b.date > today;
-      if (aFut !== bFut) return aFut ? 1 : -1; // future always last
-      if (sortDir==='desc') return b.date < a.date ? -1 : b.date > a.date ? 1 : 0;
-      return a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
-    }
-    let va, vb;
-    if (sortField==='desc')   { va=a.description; vb=b.description; }
-    else if (sortField==='cat')    { va=a.category; vb=b.category; }
-    else if (sortField==='type')   { va=a.type; vb=b.type; }
-    else if (sortField==='amount') { va=a.amount; vb=b.amount; }
-    else { va=a.date; vb=b.date; }
-    if (va<vb) return sortDir==='asc'?-1:1;
-    if (va>vb) return sortDir==='asc'?1:-1;
-    return 0;
-  });
+  return [...rows]; // order = insertion order (state.transactions order)
 }
 
 function renderTable() {
   savePrefs();
   const today    = todayStr();
   const filtered = sortRows(getFiltered());
-  const tbody = document.getElementById('tbody'), tfoot = document.getElementById('tfoot');
-  const empty = document.getElementById('empty-state'), tbl = document.getElementById('main-table');
+  const tbody  = document.getElementById('tbody');
+  const tfoot  = document.getElementById('tfoot');
+  const empty  = document.getElementById('empty-state');
+  const cards  = document.getElementById('cards-wrap');
 
-  ['date','desc','cat','type','amount'].forEach(f => {
-    const el = document.getElementById('arr-'+f), th = el.parentElement;
-    if (f===sortField) { el.textContent=sortDir==='asc'?'↑':'↓'; el.style.opacity='1'; th.classList.add('sorted'); }
-    else { el.textContent='↕'; el.style.opacity='.3'; th.classList.remove('sorted'); }
+  // Update sort buttons
+  ['date','amount','desc','cat'].forEach(f => {
+    const btn = document.getElementById('sb-'+f);
+    if (!btn) return;
+    btn.classList.toggle('active', f === sortField);
+    btn.classList.toggle('asc', f === sortField && sortDir === 'asc');
   });
 
-  if (!filtered.length) { tbody.innerHTML=''; tfoot.innerHTML=''; empty.style.display='block'; tbl.style.display='none'; return; }
-  empty.style.display='none'; tbl.style.display='';
+  if (!filtered.length) {
+    tbody.innerHTML = ''; tfoot.innerHTML = '';
+    empty.style.display = 'block'; cards.style.display = 'none'; return;
+  }
+  empty.style.display = 'none'; cards.style.display = '';
 
   let filtIncome = 0, filtExpense = 0;
 
@@ -697,47 +726,145 @@ function renderTable() {
 
     const amtClass = isFuture ? 'amt-future' : (isIncome ? 'amt-income' : 'amt-expense');
     const typeTag  = isFuture
-      ? `<span class="tag tag-future">עתידי</span>`
+      ? `<span class="tag tag-future">עתידי 🔹</span>`
       : `<span class="tag ${isIncome?'tag-income':'tag-expense'}">${t.type}</span>`;
 
-    // meta tags: method, freq, installments
-    const metaTags = [];
-    if (t.method)                                 metaTags.push(`<span class="tag tag-method">${escHtml(t.method)}</span>`);
-    if (t.freq && t.freq !== 'חד פעמי')          metaTags.push(`<span class="tag tag-recur">${escHtml(t.freq)}</span>`);
-    if (t.freq === 'תשלומים' && t.instTotal)      metaTags.push(`<span class="tag tag-inst">${t.instCurrent}/${t.instTotal}</span>`);
-
-    const metaHtml = metaTags.length ? `<div class="td-meta">${metaTags.join('')}</div>` : '—';
+    const metaTags = [typeTag];
+    if (t.category) metaTags.push(`<span class="tag tag-cat">${escHtml(t.category)}</span>`);
+    if (t.method)   metaTags.push(`<span class="tag tag-method">${escHtml(t.method)}</span>`);
+    if (t.freq && t.freq !== 'חד פעמי') metaTags.push(`<span class="tag tag-recur">${escHtml(t.freq)}</span>`);
+    if (t.freq === 'תשלומים' && t.instTotal) metaTags.push(`<span class="tag tag-inst">${t.instCurrent}/${t.instTotal}</span>`);
 
     const actHtml = pendingDelete[t.id]
-      ? `<div class="confirm-del"><span>למחוק?</span>
+      ? `<span class="confirm-del">
+           <span style="font-size:11px;color:var(--expense)">למחוק?</span>
            <button class="btn-danger" onclick="confirmDelete('${t.id}')">מחק</button>
            <button class="btn-secondary" style="font-size:11px;padding:3px 8px" onclick="cancelDelete('${t.id}')">ביטול</button>
-         </div>`
-      : `<div class="actions-cell">
+         </span>`
+      : `<span class="tx-card-actions">
            <button class="btn-icon" onclick="editRow('${t.id}')">✏️</button>
            <button class="btn-icon del" onclick="requestDelete('${t.id}')">🗑️</button>
-         </div>`;
+         </span>`;
 
-    return `<tr class="${isFuture?'future-row':''}">
-      <td style="white-space:nowrap;color:var(--muted)">${dateStr(t.date)}${isFuture?' 🔹':''}</td>
-      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(t.description)}</td>
-      <td><span class="tag tag-cat">${escHtml(t.category)}</span></td>
-      <td>${typeTag}</td>
-      <td>${metaHtml}</td>
-      <td style="text-align:left"><span class="${amtClass}">${isIncome?'+':'−'}${fmt(t.amount)}</span></td>
-      <td>${actHtml}</td>
-    </tr>`;
+    return `<div class="tx-card${isFuture?' future-card':''}" data-id="${t.id}" draggable="true">
+      <div class="tx-drag-handle" title="גרור לשינוי סדר">⠿</div>
+      <div class="tx-card-body">
+        <div class="tx-card-top">
+          <span class="tx-card-date">${dateStr(t.date)}</span>
+          <span class="tx-card-amount ${amtClass}">${isIncome?'+':'−'}${fmt(t.amount)}</span>
+        </div>
+        <div class="tx-card-desc">${escHtml(t.description)}</div>
+        <div class="tx-card-meta">
+          ${metaTags.join('')}
+          ${actHtml}
+        </div>
+      </div>
+    </div>`;
   }).join('');
 
   const net = filtIncome - filtExpense;
-  tfoot.innerHTML = `<tr>
-    <td colspan="5">סה"כ מסוננים (${filtered.length})</td>
-    <td style="text-align:left;color:${net>=0?'var(--income)':'var(--expense)'}">${net>=0?'+':''}${fmt(net)}</td>
-    <td></td>
-  </tr>`;
+  const netColor = net >= 0 ? 'var(--income)' : 'var(--expense)';
+  tfoot.innerHTML = `<div class="tx-summary">
+    <span>סה"כ מסוננים (${filtered.length})</span>
+    <span style="color:${netColor}">${net>=0?'+':''}${fmt(net)}</span>
+  </div>`;
 }
 
-function setSort(f) { if (sortField===f) sortDir=sortDir==='asc'?'desc':'asc'; else { sortField=f; sortDir='desc'; } renderTable(); }
+// ─── SAVINGS MODAL ───────────────────────────────────────────────────────
+function openSavingsModal() {
+  document.getElementById('modal-savings-dt').value = nowLocal();
+  if (state.savingsAnchor) document.getElementById('modal-savings-val').value = state.savingsAnchor.value;
+  const overlay = document.getElementById('savings-modal-overlay');
+  overlay.style.display = 'flex';
+  setTimeout(() => document.getElementById('modal-savings-val').focus(), 80);
+}
+function closeSavingsModal() {
+  document.getElementById('savings-modal-overlay').style.display = 'none';
+}
+function saveSavings() {
+  const val = parseFloat(document.getElementById('modal-savings-val').value);
+  const dt  = document.getElementById('modal-savings-dt').value;
+  if (isNaN(val) || !dt) return;
+  state.savingsAnchor = { value: val, datetime: dt };
+  save(); updateHeader(); closeSavingsModal();
+}
+document.getElementById('savings-modal-overlay').addEventListener('click', function(e){ if(e.target===this) closeSavingsModal(); });
+document.getElementById('modal-savings-val').addEventListener('keydown', e=>{ if(e.key==='Enter') saveSavings(); });
+
+// ─── DRAG TO REORDER ─────────────────────────────────────────────────────
+let dragSrcId = null;
+
+function initDrag() {
+  const wrap = document.getElementById('tbody');
+  wrap.addEventListener('dragstart', e => {
+    const card = e.target.closest('.tx-card');
+    if (!card) return;
+    dragSrcId = card.dataset.id;
+    setTimeout(() => card.classList.add('dragging'), 0);
+  });
+  wrap.addEventListener('dragend', e => {
+    const card = e.target.closest('.tx-card');
+    if (card) card.classList.remove('dragging');
+    wrap.querySelectorAll('.tx-card').forEach(c => c.classList.remove('drag-over'));
+  });
+  wrap.addEventListener('dragover', e => {
+    e.preventDefault();
+    const card = e.target.closest('.tx-card');
+    wrap.querySelectorAll('.tx-card').forEach(c => c.classList.remove('drag-over'));
+    if (card && card.dataset.id !== dragSrcId) card.classList.add('drag-over');
+  });
+  wrap.addEventListener('drop', e => {
+    e.preventDefault();
+    const card = e.target.closest('.tx-card');
+    if (!card || !dragSrcId || card.dataset.id === dragSrcId) return;
+    const fromIdx = state.transactions.findIndex(t => t.id === dragSrcId);
+    const toIdx   = state.transactions.findIndex(t => t.id === card.dataset.id);
+    if (fromIdx === -1 || toIdx === -1) return;
+    const [moved] = state.transactions.splice(fromIdx, 1);
+    state.transactions.splice(toIdx, 0, moved);
+    dragSrcId = null;
+    save(); renderTable(); updateHeader();
+  });
+
+  // Touch drag support
+  let touchDragId = null, touchClone = null, touchTarget = null;
+  wrap.addEventListener('touchstart', e => {
+    const handle = e.target.closest('.tx-drag-handle');
+    if (!handle) return;
+    const card = handle.closest('.tx-card');
+    if (!card) return;
+    touchDragId = card.dataset.id;
+    touchClone = card.cloneNode(true);
+    touchClone.style.cssText = 'position:fixed;opacity:.7;pointer-events:none;z-index:999;width:'+card.offsetWidth+'px;left:0;top:0;';
+    document.body.appendChild(touchClone);
+    card.classList.add('dragging');
+  }, {passive:true});
+  wrap.addEventListener('touchmove', e => {
+    if (!touchDragId) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    if (touchClone) { touchClone.style.left = (touch.clientX - 40)+'px'; touchClone.style.top = (touch.clientY - 30)+'px'; }
+    wrap.querySelectorAll('.tx-card').forEach(c => c.classList.remove('drag-over'));
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    touchTarget = el ? el.closest('.tx-card') : null;
+    if (touchTarget && touchTarget.dataset.id !== touchDragId) touchTarget.classList.add('drag-over');
+  }, {passive:false});
+  wrap.addEventListener('touchend', () => {
+    if (!touchDragId) return;
+    if (touchClone) { touchClone.remove(); touchClone = null; }
+    wrap.querySelectorAll('.tx-card').forEach(c => { c.classList.remove('dragging'); c.classList.remove('drag-over'); });
+    if (touchTarget && touchTarget.dataset.id && touchTarget.dataset.id !== touchDragId) {
+      const fromIdx = state.transactions.findIndex(t => t.id === touchDragId);
+      const toIdx   = state.transactions.findIndex(t => t.id === touchTarget.dataset.id);
+      if (fromIdx !== -1 && toIdx !== -1) {
+        const [moved] = state.transactions.splice(fromIdx, 1);
+        state.transactions.splice(toIdx, 0, moved);
+        save(); renderTable(); updateHeader();
+      }
+    }
+    touchDragId = null; touchTarget = null;
+  });
+}
 
 // ─── FORM SUBMIT ─────────────────────────────────────────────────────────
 function submitForm() {
@@ -787,6 +914,7 @@ function submitForm() {
   }
 
   save(); updateHeader(); renderTable(); renderForecast();
+initDrag();
 }
 
 function resetForm() {
