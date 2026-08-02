@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>חשבון עו"ש</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a2740">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="עו&quot;ש">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f0f2f5;
+    --surface: #ffffff;
+    --navy: #1a2740;
+    --navy2: #2e4a7a;
+    --navy-light: #8ba3c7;
+    --income: #065f46;
+    --income-bg: #ecfdf5;
+    --expense: #991b1b;
+    --expense-bg: #fef2f2;
+    --expense-border: #fecaca;
+    --future: #92400e;
+    --future-bg: #fffbeb;
+    --future-border: #fde68a;
+    --muted: #6b7280;
+    --border: #e2e8f0;
+    --text: #111827;
+    --tag-bg: #eef2ff;
+    --tag-color: #3b4f8a;
+    --radius: 8px;
+    --shadow: 0 2px 10px rgba(0,0,0,.07);
+  }
+
+  body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 60px; }
+
+  /* HEADER */
+  #header { background: var(--navy); color: #fff; padding: 22px 28px 0; border-bottom: 3px solid var(--navy2); }
+  #header-inner { max-width: 1060px; margin: 0 auto; }
+  #app-label { font-size: 11px; letter-spacing: 1.5px; color: var(--navy-light); text-transform: uppercase; margin-bottom: 18px; }
+  #balance-strip { display: flex; align-items: flex-end; gap: 36px; padding-bottom: 22px; flex-wrap: wrap; }
+  #balance-label { font-size: 11px; color: var(--navy-light); margin-bottom: 3px; }
+  #balance-anchor-info { font-size: 10px; color: #5a7aaa; margin-top: 3px; }
+  #balance-value { font-size: 46px; font-weight: 700; letter-spacing: -1px; line-height: 1; transition: color .3s; }
+  #balance-value.positive { color: #6ee7b7; }
+  #balance-value.negative { color: #fca5a5; }
+  .stat-block .s-label { font-size: 10px; color: var(--navy-light); margin-bottom: 2px; }
+  .stat-block .s-value { font-size: 19px; font-weight: 600; padding-bottom: 4px; }
+  .s-income { color: #6ee7b7; } .s-expense { color: #fca5a5; } .s-count { color: #e2e8f0; }
+  .hdr-btn { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18); color: #c7d8f0; border-radius: 6px; padding: 7px 14px; font-size: 12px; cursor: pointer; transition: background .2s; white-space: nowrap; }
+  .hdr-btn:hover { background: rgba(255,255,255,.16); }
+
+  /* MAIN */
+  #main { max-width: 1060px; margin: 24px auto 0; padding: 0 16px; }
+
+  /* PANELS */
+  .panel { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); margin-bottom: 18px; }
+  .panel-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 14px; color: var(--navy); cursor: pointer; user-select: none; }
+  .panel-head .toggle-icon { font-size: 11px; color: var(--muted); transition: transform .2s; }
+  .panel-head.open .toggle-icon { transform: rotate(180deg); }
+  .panel-body { padding: 18px; }
+  .panel-body.hidden { display: none; }
+
+  /* FORM */
+  .form-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin-bottom: 10px; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field label { font-size: 12px; color: var(--muted); font-weight: 500; }
+  .field input, .field select { padding: 8px 10px; border-radius: 6px; border: 1px solid #d1d5db; font-size: 13px; font-family: inherit; direction: rtl; background: #fafafa; color: var(--text); transition: border-color .15s; }
+  .field input:focus, .field select:focus { outline: none; border-color: var(--navy2); background: #fff; }
+  .field.w-date { width: 130px; }
+  .field.w-desc { flex: 1; min-width: 180px; }
+  .field.w-cat  { width: 150px; }
+  .field.w-sm   { width: 110px; }
+  .field.w-med  { width: 130px; }
+  .form-divider { border: none; border-top: 1px dashed var(--border); margin: 12px 0; }
+  .form-section-label { font-size: 11px; color: var(--navy-light); font-weight: 600; letter-spacing: .5px; text-transform: uppercase; margin-bottom: 8px; }
+
+  /* conditional fields */
+  #recurring-fields, #installment-fields, #recurring-until { display: none; }
+  #recurring-fields.show, #installment-fields.show, #recurring-until.show { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; }
+
+  .form-actions { display: flex; gap: 8px; margin-top: 14px; }
+
+  /* BUTTONS */
+  .btn-primary { background: var(--navy2); color: #fff; border: none; border-radius: 6px; padding: 9px 20px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .2s; }
+  .btn-primary:hover { background: #1e3a6a; }
+  .btn-secondary { background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 6px; padding: 9px 16px; font-size: 13px; cursor: pointer; color: #374151; transition: background .2s; }
+  .btn-secondary:hover { background: #e5e7eb; }
+  .btn-danger { background: #dc2626; color: #fff; border: none; border-radius: 5px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+  .btn-icon { background: none; border: 1px solid #d1d5db; border-radius: 5px; padding: 4px 9px; font-size: 12px; cursor: pointer; color: var(--muted); transition: border-color .15s; }
+  .btn-icon:hover { border-color: var(--navy2); color: var(--navy2); }
+  .btn-icon.del { border-color: var(--expense-border); color: var(--expense); }
+  .btn-icon.del:hover { background: var(--expense-bg); }
+
+  /* TOOLBAR */
+  #toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+  #toolbar select, #toolbar input[type=text] { padding: 7px 11px; border-radius: 6px; border: 1px solid #d1d5db; font-size: 13px; background: #fff; color: var(--text); font-family: inherit; direction: rtl; }
+  #search-box { min-width: 160px; }
+  #toolbar label { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+
+  /* TABLE */
+  #table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead tr { background: #f8fafc; border-bottom: 2px solid var(--border); }
+  th { padding: 10px 12px; text-align: right; font-weight: 600; color: #374151; cursor: pointer; user-select: none; white-space: nowrap; }
+  th:hover { color: var(--navy2); }
+  th .sort-arrow { opacity: .3; font-size: 11px; }
+  th.sorted .sort-arrow { opacity: 1; color: var(--navy2); }
+  tbody tr { border-bottom: 1px solid #f1f5f9; transition: background .1s; }
+  tbody tr:hover { background: #f0f4ff !important; }
+  tbody tr.future-row { background: var(--future-bg); }
+  td { padding: 8px 12px; vertical-align: middle; }
+  tfoot tr { background: #f8fafc; border-top: 2px solid var(--border); }
+  tfoot td { padding: 9px 12px; font-weight: 700; font-size: 13px; }
+
+  .tag { display: inline-block; border-radius: 12px; padding: 2px 8px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .tag-cat     { background: var(--tag-bg);     color: var(--tag-color); }
+  .tag-income  { background: var(--income-bg);  color: var(--income); }
+  .tag-expense { background: var(--expense-bg); color: var(--expense); }
+  .tag-future  { background: var(--future-bg);  color: var(--future); border: 1px solid var(--future-border); }
+  .tag-method  { background: #f0fdf4; color: #166534; font-size: 10px; }
+  .tag-inst    { background: #faf5ff; color: #6b21a8; font-size: 10px; }
+  .tag-recur   { background: #eff6ff; color: #1d4ed8; font-size: 10px; }
+
+  .amt-income  { color: var(--income);  font-weight: 700; }
+  .amt-expense { color: var(--expense); font-weight: 700; }
+  .amt-future  { color: var(--future);  font-weight: 700; }
+
+  .actions-cell { display: flex; gap: 4px; justify-content: center; white-space: nowrap; }
+  .confirm-del  { display: flex; gap: 5px; align-items: center; white-space: nowrap; }
+  .confirm-del span { font-size: 11px; color: var(--expense); }
+  .td-meta { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
+
+  #empty-state { text-align: center; padding: 50px 20px; color: var(--muted); }
+  #empty-state .empty-icon { font-size: 34px; margin-bottom: 10px; }
+
+  /* FORECAST */
+  #forecast-controls { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
+  #forecast-controls label { font-size: 13px; color: var(--muted); }
+  #forecast-controls input[type=date] { padding: 7px 11px; border-radius: 6px; border: 1px solid #d1d5db; font-size: 13px; background: #fff; font-family: inherit; direction: rtl; }
+  #forecast-result { display: flex; gap: 16px; flex-wrap: wrap; }
+  .forecast-card { background: #f8fafc; border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; min-width: 160px; }
+  .forecast-card .fc-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .forecast-card .fc-value { font-size: 22px; font-weight: 700; }
+  .fc-pos { color: var(--income); } .fc-neg { color: var(--expense); } .fc-neutral { color: var(--navy); }
+
+  /* SETTINGS */
+  .settings-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+  .settings-row label { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .settings-row select, .settings-row input[type=number] { padding: 7px 11px; border-radius: 6px; border: 1px solid #d1d5db; font-size: 13px; background: #fff; font-family: inherit; direction: rtl; width: 90px; }
+  #period-preview { font-size: 12px; color: var(--navy2); background: var(--tag-bg); border-radius: 6px; padding: 6px 12px; }
+  .settings-section-title { font-size: 13px; font-weight: 600; color: var(--navy); margin-bottom: 10px; }
+
+  /* MODAL */
+  #modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 100; align-items: center; justify-content: center; }
+  #modal-overlay.show { display: flex; }
+  #modal-box { background: #fff; border-radius: 10px; padding: 28px 28px 22px; width: min(440px, 90vw); box-shadow: 0 8px 40px rgba(0,0,0,.18); direction: rtl; }
+  #modal-box h3 { font-size: 16px; color: var(--navy); margin-bottom: 6px; }
+  #modal-box p  { font-size: 12px; color: var(--muted); margin-bottom: 18px; line-height: 1.5; }
+  #modal-box .field { margin-bottom: 12px; }
+  #modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+
+  #footer-note { text-align: center; font-size: 11px; color: #b0b8c8; margin-top: 18px; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <div id="header-inner">
+    <div id="app-label">ניהול חשבון עו&quot;ש</div>
+    <div id="balance-strip">
+      <div>
+        <div id="balance-label">יתרה נוכחית</div>
+        <div id="balance-value" class="positive">₪0.00</div>
+        <div id="balance-anchor-info">—</div>
+      </div>
+      <div class="stat-block">
+        <div class="s-label">הכנסות (כל הזמנים)</div>
+        <div class="s-value s-income" id="stat-income">₪0.00</div>
+      </div>
+      <div class="stat-block">
+        <div class="s-label">הוצאות (כל הזמנים)</div>
+        <div class="s-value s-expense" id="stat-expense">₪0.00</div>
+      </div>
+      <div class="stat-block">
+        <div class="s-label">עסקאות</div>
+        <div class="s-value s-count" id="stat-count">0</div>
+      </div>
+      <button class="hdr-btn" onclick="openBalanceModal()">⚖ עדכן יתרה נוכחית</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- FORM -->
+  <div class="panel" id="form-panel">
+    <div class="panel-head open" id="form-panel-head" onclick="togglePanel('form-panel')">
+      <span id="form-panel-title">➕ הוספת עסקה</span>
+      <span class="toggle-icon">▼</span>
+    </div>
+    <div class="panel-body" id="form-panel-body">
+
+      <!-- Row 1: basic -->
+      <div class="form-section-label">פרטי עסקה</div>
+      <div class="form-row">
+        <div class="field w-date"><label>תאריך</label><input type="date" id="f-date"></div>
+        <div class="field w-desc"><label>תיאור / פירוט</label><input type="text" id="f-desc" placeholder="למשל: משכורת יולי"></div>
+        <div class="field w-cat"><label>קטגוריה</label><select id="f-cat"></select></div>
+        <div class="field w-sm"><label>סוג</label>
+          <select id="f-type">
+            <option value="הכנסה">הכנסה</option>
+            <option value="הוצאה" selected>הוצאה</option>
+          </select>
+        </div>
+        <div class="field w-med"><label>סכום (₪)</label><input type="number" id="f-amount" placeholder="0.00" min="0" step="0.01"></div>
+      </div>
+
+      <hr class="form-divider">
+
+      <!-- Row 2: method + frequency -->
+      <div class="form-section-label">אמצעי תשלום ותדירות</div>
+      <div class="form-row">
+        <div class="field w-med">
+          <label>אמצעי תשלום</label>
+          <select id="f-method">
+            <option value="">— לא צוין —</option>
+            <option value="העברה">העברה בנקאית</option>
+            <option value="הוראת קבע">הוראת קבע</option>
+            <option value="הרשאה">הרשאה לחיוב</option>
+            <option value="אשראי">אשראי</option>
+            <option value="מזומן">מזומן</option>
+          </select>
+        </div>
+        <div class="field w-med">
+          <label>תדירות</label>
+          <select id="f-freq" onchange="onFreqChange()">
+            <option value="חד פעמי">חד פעמי</option>
+            <option value="חודשי">חודשי</option>
+            <option value="חודשיים">כל חודשיים</option>
+            <option value="רבעוני">רבעוני</option>
+            <option value="שנתי">שנתי</option>
+            <option value="תשלומים">תשלומים</option>
+          </select>
+        </div>
+
+        <!-- shown when recurring -->
+        <div id="recurring-until">
+          <div class="field w-med"><label>צור עסקאות עד תאריך</label><input type="date" id="f-until"></div>
+        </div>
+
+        <!-- shown when installments -->
+        <div id="installment-fields">
+          <div class="field" style="width:90px"><label>מספר תשלומים</label><input type="number" id="f-inst-total" min="2" max="120" placeholder="12"></div>
+          <div class="field" style="width:90px"><label>תשלום נוכחי</label><input type="number" id="f-inst-current" min="1" max="120" placeholder="1"></div>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn-primary" id="submit-btn" onclick="submitForm()">הוסף עסקה</button>
+        <button class="btn-secondary" id="cancel-btn" onclick="cancelEdit()" style="display:none">ביטול עריכה</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="panel">
+    <div class="panel-head open" id="table-panel-head" onclick="togglePanel('table-panel')">
+      <span>📋 עסקאות</span>
+      <span class="toggle-icon">▼</span>
+    </div>
+    <div class="panel-body" id="table-panel-body">
+      <div id="toolbar">
+        <input type="text" id="search-box" placeholder="🔍 חיפוש..." oninput="renderTable()">
+        <select id="filter-type" onchange="renderTable()">
+          <option value="">כל הסוגים</option>
+          <option value="הכנסה">הכנסות</option>
+          <option value="הוצאה">הוצאות</option>
+        </select>
+        <select id="filter-cat" onchange="renderTable()">
+          <option value="">כל הקטגוריות</option>
+        </select>
+        <select id="filter-method" onchange="renderTable()">
+          <option value="">כל אמצעי התשלום</option>
+          <option value="העברה">העברה בנקאית</option>
+          <option value="הוראת קבע">הוראת קבע</option>
+          <option value="הרשאה">הרשאה לחיוב</option>
+          <option value="אשראי">אשראי</option>
+          <option value="מזומן">מזומן</option>
+        </select>
+        <select id="filter-period" onchange="renderTable()">
+          <option value="">כל הזמנים</option>
+          <option value="billing">חודש חיוב נוכחי</option>
+          <option value="7">7 ימים אחרונים</option>
+          <option value="30">30 ימים אחרונים</option>
+          <option value="90">3 חודשים אחרונים</option>
+          <option value="year">השנה הנוכחית</option>
+        </select>
+        <label><input type="checkbox" id="show-future" onchange="renderTable()" checked> הצג עתידיות</label>
+        <button class="btn-secondary" onclick="clearFilters()" style="font-size:12px;padding:7px 12px">נקה סינון</button>
+      </div>
+
+      <div id="table-wrap">
+        <table id="main-table">
+          <thead><tr>
+            <th onclick="setSort('date')">תאריך <span class="sort-arrow" id="arr-date">↓</span></th>
+            <th onclick="setSort('desc')">תיאור <span class="sort-arrow" id="arr-desc">↕</span></th>
+            <th onclick="setSort('cat')">קטגוריה <span class="sort-arrow" id="arr-cat">↕</span></th>
+            <th onclick="setSort('type')">סוג <span class="sort-arrow" id="arr-type">↕</span></th>
+            <th>פרטים</th>
+            <th onclick="setSort('amount')" style="text-align:left">סכום <span class="sort-arrow" id="arr-amount">↕</span></th>
+            <th style="text-align:center">פעולות</th>
+          </tr></thead>
+          <tbody id="tbody"></tbody>
+          <tfoot id="tfoot"></tfoot>
+        </table>
+        <div id="empty-state" style="display:none">
+          <div class="empty-icon">📋</div>
+          <div>אין עסקאות להצגה</div>
+          <div style="font-size:12px;margin-top:4px">הוסף עסקה ראשונה למעלה</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FORECAST -->
+  <div class="panel">
+    <div class="panel-head open" id="forecast-panel-head" onclick="togglePanel('forecast-panel')">
+      <span>🔭 תחזית יתרה</span>
+      <span class="toggle-icon">▼</span>
+    </div>
+    <div class="panel-body" id="forecast-panel-body">
+      <div id="forecast-controls">
+        <label>תחזית עד תאריך: <input type="date" id="forecast-date" onchange="renderForecast()"></label>
+      </div>
+      <div id="forecast-result">
+        <div class="forecast-card"><div class="fc-label">יתרה נוכחית</div><div class="fc-value fc-neutral" id="fc-current">₪0.00</div></div>
+        <div class="forecast-card"><div class="fc-label">הכנסות עתידיות צפויות</div><div class="fc-value fc-pos" id="fc-income-future">₪0.00</div></div>
+        <div class="forecast-card"><div class="fc-label">הוצאות עתידיות צפויות</div><div class="fc-value fc-neg" id="fc-expense-future">₪0.00</div></div>
+        <div class="forecast-card" style="border:2px solid var(--navy2)"><div class="fc-label">יתרה צפויה בתאריך</div><div class="fc-value" id="fc-projected">₪0.00</div></div>
+      </div>
+      <div id="forecast-note" style="margin-top:12px;font-size:11px;color:var(--muted)"></div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="panel">
+    <div class="panel-head" id="settings-panel-head" onclick="togglePanel('settings-panel')">
+      <span>⚙️ הגדרות</span>
+      <span class="toggle-icon">▼</span>
+    </div>
+    <div class="panel-body hidden" id="settings-panel-body">
+
+      <div style="margin-bottom:22px">
+        <div class="settings-section-title">📅 תקופת חיוב חודשית</div>
+        <div class="settings-row">
+          <label>יום התחלה:
+            <input type="number" id="billing-start-day" min="1" max="31" value="1" onchange="saveBillingPeriod()">
+          </label>
+          <div id="period-preview">תקופה: 1 בחודש עד סוף החודש</div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">
+          לדוגמה: אם תרשום 10, החודש יחושב מה-10 בחודש עד ה-9 בחודש הבא. ערכים אפשריים: 1–31.
+        </div>
+      </div>
+
+      <div>
+        <div class="settings-section-title">🏷️ ניהול קטגוריות</div>
+        <div id="cat-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px"></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="text" id="new-cat-input" placeholder="קטגוריה חדשה..." style="padding:7px 11px;border-radius:6px;border:1px solid #d1d5db;font-size:13px;font-family:inherit;direction:rtl;min-width:180px">
+          <button class="btn-primary" onclick="addCategory()" style="padding:8px 16px">הוסף</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- BALANCE MODAL -->
+<div id="modal-overlay">
+  <div id="modal-box">
+    <h3>⚖ עדכון יתרה נוכחית</h3>
+    <p>הכנס את היתרה האמיתית בחשבון כרגע. האתר ישתמש בסכום הזה כנקודת ייחוס ויחשב את היתרה קדימה לפי ההכנסות וההוצאות שהוזנו.</p>
+    <div class="field"><label>יתרה נוכחית (₪)</label><input type="number" id="modal-balance-val" step="0.01" placeholder="לדוגמה: 4250.00" style="font-size:18px;font-weight:700;padding:10px 12px"></div>
+    <div class="field"><label>תאריך ושעה של הבדיקה</label><input type="datetime-local" id="modal-balance-dt"></div>
+    <div id="modal-actions">
+      <button class="btn-primary" onclick="saveBalance()">שמור יתרה</button>
+      <button class="btn-secondary" onclick="closeBalanceModal()">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<div id="footer-note">הנתונים נשמרים אוטומטית בדפדפן שלך · לא נשלח שום מידע לשום שרת</div>
+
+<script>
+// ─── CONSTANTS ────────────────────────────────────────────────────────────
+const STORAGE_KEY = 'cheshbon_v4';
+const DEFAULT_CATEGORIES = [
+  'משכורת','שכר דירה','אוכל','דלק','חשבונות',
+  'טלפון / אינטרנט','בידור','בריאות','ביגוד','חיסכון',
+  'תחבורה','ביטוח','מסעדות','קניות','תרומה','אחר'
+];
+const FREQ_MONTHS = { 'חודשי': 1, 'חודשיים': 2, 'רבעוני': 3, 'שנתי': 12 };
+
+// ─── STATE ────────────────────────────────────────────────────────────────
+let state = {
+  anchor: null,
+  transactions: [],
+  categories: [...DEFAULT_CATEGORIES],
+  billingStartDay: 1
+};
+let sortField = 'date', sortDir = 'desc', editId = null;
+const pendingDelete = {};
+
+// ─── PERSIST ─────────────────────────────────────────────────────────────
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const p = JSON.parse(raw);
+      state = { ...state, ...p };
+      if (!state.categories || !state.categories.length) state.categories = [...DEFAULT_CATEGORIES];
+      if (!state.billingStartDay) state.billingStartDay = 1;
+    }
+  } catch(e) {}
+}
+function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+// ─── UTILS ────────────────────────────────────────────────────────────────
+function fmt(n) { return new Intl.NumberFormat('he-IL',{style:'currency',currency:'ILS',minimumFractionDigits:2}).format(n); }
+function todayStr()   { return new Date().toISOString().slice(0,10); }
+function nowLocal()   { return new Date().toISOString().slice(0,16); }
+function dateStr(iso) { return iso.split('-').reverse().join('/'); }
+function escHtml(s)   { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// Add N months to a date string, returns new date string
+function addMonths(isoDate, n) {
+  const d = new Date(isoDate + 'T00:00:00');
+  d.setMonth(d.getMonth() + n);
+  return d.toISOString().slice(0,10);
+}
+
+// ─── FORM: FREQUENCY TOGGLE ──────────────────────────────────────────────
+function onFreqChange() {
+  const freq = document.getElementById('f-freq').value;
+  const isRecurring    = freq !== 'חד פעמי' && freq !== 'תשלומים';
+  const isInstallments = freq === 'תשלומים';
+
+  document.getElementById('recurring-until').className   = isRecurring    ? 'show' : '';
+  document.getElementById('installment-fields').className = isInstallments ? 'show' : '';
+}
+
+// ─── BILLING PERIOD ──────────────────────────────────────────────────────
+function localDateStr(yr, mo, day) {
+  const d = new Date(yr, mo, day);
+  const y  = d.getFullYear();
+  const m  = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+
+function currentBillingPeriod() {
+  const d = parseInt(state.billingStartDay) || 1;
+  const now = new Date(), yr = now.getFullYear(), mo = now.getMonth(), day = now.getDate();
+  let start, end;
+  if (d === 1) {
+    start = localDateStr(yr, mo, 1);
+    end   = localDateStr(yr, mo + 1, 0);
+  } else {
+    if (day >= d) {
+      start = localDateStr(yr, mo, d);
+      end   = localDateStr(yr, mo + 1, d - 1);
+    } else {
+      start = localDateStr(yr, mo - 1, d);
+      end   = localDateStr(yr, mo, d - 1);
+    }
+  }
+  return { start, end };
+}
+
+function updatePeriodPreview() {
+  const d = parseInt(document.getElementById('billing-start-day').value) || 1;
+  state.billingStartDay = d;
+  const { start, end } = currentBillingPeriod();
+  document.getElementById('period-preview').textContent =
+    d === 1 ? 'תקופה: 1 בחודש עד סוף החודש' : `תקופה נוכחית: ${dateStr(start)} — ${dateStr(end)}`;
+}
+
+function saveBillingPeriod() {
+  const val = parseInt(document.getElementById('billing-start-day').value);
+  if (isNaN(val) || val < 1 || val > 31) { document.getElementById('billing-start-day').value = state.billingStartDay; return; }
+  state.billingStartDay = val;
+  save(); updatePeriodPreview(); renderTable(); renderForecast();
+}
+
+// ─── CATEGORIES ──────────────────────────────────────────────────────────
+function populateCatSelects() {
+  ['f-cat','filter-cat'].forEach(id => {
+    const sel = document.getElementById(id), cur = sel.value;
+    sel.innerHTML = id === 'filter-cat' ? '<option value="">כל הקטגוריות</option>' : '';
+    state.categories.forEach(c => { const o = document.createElement('option'); o.value = o.textContent = c; sel.appendChild(o); });
+    if (cur) sel.value = cur;
+  });
+}
+
+function renderCatSettings() {
+  document.getElementById('cat-list').innerHTML = state.categories.map((c,i) =>
+    `<span style="display:inline-flex;align-items:center;gap:4px;background:var(--tag-bg);color:var(--tag-color);border-radius:14px;padding:3px 10px;font-size:12px;font-weight:600">
+      ${escHtml(c)}
+      ${state.categories.length > 1 ? `<button onclick="removeCategory(${i})" style="background:none;border:none;cursor:pointer;color:#9ca3af;font-size:13px;line-height:1;padding:0 0 0 2px">×</button>` : ''}
+    </span>`
+  ).join('');
+}
+
+function addCategory() {
+  const inp = document.getElementById('new-cat-input'), name = inp.value.trim();
+  if (!name || state.categories.includes(name)) { inp.focus(); return; }
+  state.categories.push(name); inp.value = '';
+  save(); populateCatSelects(); renderCatSettings();
+}
+
+function removeCategory(idx) {
+  const cat = state.categories[idx];
+  const count = state.transactions.filter(t=>t.category===cat).length;
+  if (count && !confirm(`הקטגוריה "${cat}" בשימוש ב-${count} עסקאות. להסיר בכל זאת?`)) return;
+  state.categories.splice(idx,1);
+  save(); populateCatSelects(); renderCatSettings();
+}
+
+// ─── BALANCE ─────────────────────────────────────────────────────────────
+function computeBalance(upToDate) {
+  if (!state.anchor) return null;
+  const anchorDate = state.anchor.datetime.slice(0,10);
+  const cutoff = upToDate || todayStr();
+  let delta = 0;
+  for (const t of state.transactions) {
+    if (t.date >= anchorDate && t.date <= cutoff)
+      delta += t.type === 'הכנסה' ? t.amount : -t.amount;
+  }
+  return state.anchor.value + delta;
+}
+
+function updateHeader() {
+  const balance    = computeBalance(todayStr());
+  const allIncome  = state.transactions.filter(t=>t.type==='הכנסה').reduce((s,t)=>s+t.amount,0);
+  const allExpense = state.transactions.filter(t=>t.type==='הוצאה').reduce((s,t)=>s+t.amount,0);
+  document.getElementById('stat-income').textContent  = fmt(allIncome);
+  document.getElementById('stat-expense').textContent = fmt(allExpense);
+  document.getElementById('stat-count').textContent   = state.transactions.length;
+  const bv = document.getElementById('balance-value'), bi = document.getElementById('balance-anchor-info');
+  if (balance === null) {
+    bv.textContent = '—'; bv.className = '';
+    bi.textContent = 'לחץ "עדכן יתרה נוכחית" כדי להגדיר נקודת ייחוס';
+  } else {
+    bv.textContent = fmt(balance); bv.className = balance >= 0 ? 'positive' : 'negative';
+    const dt = new Date(state.anchor.datetime);
+    bi.textContent = `מבוסס על יתרה שהוזנה ב־${dt.toLocaleDateString('he-IL')} ${dt.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})} (${fmt(state.anchor.value)})`;
+  }
+}
+
+// ─── FORECAST ────────────────────────────────────────────────────────────
+function renderForecast() {
+  const fd = document.getElementById('forecast-date').value, today = todayStr();
+  const current = computeBalance(today);
+  document.getElementById('fc-current').textContent = current === null ? '—' : fmt(current);
+  if (!fd) {
+    ['fc-projected','fc-income-future','fc-expense-future'].forEach(id => document.getElementById(id).textContent = '—');
+    document.getElementById('forecast-note').textContent = 'בחר תאריך יעד כדי לראות תחזית';
+    return;
+  }
+  const tom = new Date(); tom.setDate(tom.getDate()+1);
+  const tomStr = tom.toISOString().slice(0,10);
+  let fi = 0, fe = 0;
+  for (const t of state.transactions) {
+    if (t.date >= tomStr && t.date <= fd) { t.type === 'הכנסה' ? fi += t.amount : fe += t.amount; }
+  }
+  const proj = (current||0) + fi - fe;
+  const el = document.getElementById('fc-projected');
+  el.textContent = fmt(proj); el.className = 'fc-value ' + (proj >= 0 ? 'fc-pos' : 'fc-neg');
+  document.getElementById('fc-income-future').textContent  = fmt(fi);
+  document.getElementById('fc-expense-future').textContent = fmt(fe);
+  const cnt = state.transactions.filter(t=>t.date>=tomStr&&t.date<=fd).length;
+  document.getElementById('forecast-note').textContent = `מבוסס על ${cnt} עסקה/ות עתידיות בין מחר ל־${dateStr(fd)}`;
+}
+
+// ─── TABLE ────────────────────────────────────────────────────────────────
+function getFiltered() {
+  const q = document.getElementById('search-box').value.trim().toLowerCase();
+  const ft = document.getElementById('filter-type').value;
+  const fc = document.getElementById('filter-cat').value;
+  const fm = document.getElementById('filter-method').value;
+  const fp = document.getElementById('filter-period').value;
+  const showFuture = document.getElementById('show-future').checked;
+  const today = todayStr();
+  const { start: bps, end: bpe } = currentBillingPeriod();
+
+  return state.transactions.filter(t => {
+    if (!showFuture && t.date > today) return false;
+    if (ft && t.type !== ft) return false;
+    if (fc && t.category !== fc) return false;
+    if (fm && t.method !== fm) return false;
+    if (q && !t.description.toLowerCase().includes(q) && !t.category.toLowerCase().includes(q)) return false;
+    if (fp) {
+      if (fp === 'billing') { if (t.date < bps || t.date > bpe) return false; }
+      else if (fp === 'year') { if (!t.date.startsWith(new Date().getFullYear().toString())) return false; }
+      else { const cut = new Date(); cut.setDate(cut.getDate()-parseInt(fp)); if (new Date(t.date+'T00:00:00') < cut) return false; }
+    }
+    return true;
+  });
+}
+
+function sortRows(rows) {
+  return [...rows].sort((a,b) => {
+    let va, vb;
+    if (sortField==='date')   { va=a.date; vb=b.date; }
+    else if (sortField==='desc')   { va=a.description; vb=b.description; }
+    else if (sortField==='cat')    { va=a.category; vb=b.category; }
+    else if (sortField==='type')   { va=a.type; vb=b.type; }
+    else if (sortField==='amount') { va=a.amount; vb=b.amount; }
+    else { va=a.date; vb=b.date; }
+    if (va<vb) return sortDir==='asc'?-1:1;
+    if (va>vb) return sortDir==='asc'?1:-1;
+    return 0;
+  });
+}
+
+function renderTable() {
+  const today    = todayStr();
+  const filtered = sortRows(getFiltered());
+  const tbody = document.getElementById('tbody'), tfoot = document.getElementById('tfoot');
+  const empty = document.getElementById('empty-state'), tbl = document.getElementById('main-table');
+
+  ['date','desc','cat','type','amount'].forEach(f => {
+    const el = document.getElementById('arr-'+f), th = el.parentElement;
+    if (f===sortField) { el.textContent=sortDir==='asc'?'↑':'↓'; el.style.opacity='1'; th.classList.add('sorted'); }
+    else { el.textContent='↕'; el.style.opacity='.3'; th.classList.remove('sorted'); }
+  });
+
+  if (!filtered.length) { tbody.innerHTML=''; tfoot.innerHTML=''; empty.style.display='block'; tbl.style.display='none'; return; }
+  empty.style.display='none'; tbl.style.display='';
+
+  let filtIncome = 0, filtExpense = 0;
+
+  tbody.innerHTML = filtered.map(t => {
+    const isFuture = t.date > today;
+    const isIncome = t.type === 'הכנסה';
+    if (!isFuture) { isIncome ? filtIncome += t.amount : filtExpense += t.amount; }
+
+    const amtClass = isFuture ? 'amt-future' : (isIncome ? 'amt-income' : 'amt-expense');
+    const typeTag  = isFuture
+      ? `<span class="tag tag-future">עתידי</span>`
+      : `<span class="tag ${isIncome?'tag-income':'tag-expense'}">${t.type}</span>`;
+
+    // meta tags: method, freq, installments
+    const metaTags = [];
+    if (t.method)                                 metaTags.push(`<span class="tag tag-method">${escHtml(t.method)}</span>`);
+    if (t.freq && t.freq !== 'חד פעמי')          metaTags.push(`<span class="tag tag-recur">${escHtml(t.freq)}</span>`);
+    if (t.freq === 'תשלומים' && t.instTotal)      metaTags.push(`<span class="tag tag-inst">${t.instCurrent}/${t.instTotal}</span>`);
+
+    const metaHtml = metaTags.length ? `<div class="td-meta">${metaTags.join('')}</div>` : '—';
+
+    const actHtml = pendingDelete[t.id]
+      ? `<div class="confirm-del"><span>למחוק?</span>
+           <button class="btn-danger" onclick="confirmDelete('${t.id}')">מחק</button>
+           <button class="btn-secondary" style="font-size:11px;padding:3px 8px" onclick="cancelDelete('${t.id}')">ביטול</button>
+         </div>`
+      : `<div class="actions-cell">
+           <button class="btn-icon" onclick="editRow('${t.id}')">✏️</button>
+           <button class="btn-icon del" onclick="requestDelete('${t.id}')">🗑️</button>
+         </div>`;
+
+    return `<tr class="${isFuture?'future-row':''}">
+      <td style="white-space:nowrap;color:var(--muted)">${dateStr(t.date)}${isFuture?' 🔹':''}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(t.description)}</td>
+      <td><span class="tag tag-cat">${escHtml(t.category)}</span></td>
+      <td>${typeTag}</td>
+      <td>${metaHtml}</td>
+      <td style="text-align:left"><span class="${amtClass}">${isIncome?'+':'−'}${fmt(t.amount)}</span></td>
+      <td>${actHtml}</td>
+    </tr>`;
+  }).join('');
+
+  const net = filtIncome - filtExpense;
+  tfoot.innerHTML = `<tr>
+    <td colspan="5">סה"כ מסוננים (${filtered.length})</td>
+    <td style="text-align:left;color:${net>=0?'var(--income)':'var(--expense)'}">${net>=0?'+':''}${fmt(net)}</td>
+    <td></td>
+  </tr>`;
+}
+
+function setSort(f) { if (sortField===f) sortDir=sortDir==='asc'?'desc':'asc'; else { sortField=f; sortDir='desc'; } renderTable(); }
+
+// ─── FORM SUBMIT ─────────────────────────────────────────────────────────
+function submitForm() {
+  const date   = document.getElementById('f-date').value;
+  const desc   = document.getElementById('f-desc').value.trim();
+  const cat    = document.getElementById('f-cat').value;
+  const type   = document.getElementById('f-type').value;
+  const amount = parseFloat(document.getElementById('f-amount').value);
+  const method = document.getElementById('f-method').value;
+  const freq   = document.getElementById('f-freq').value;
+
+  if (!desc || isNaN(amount) || amount <= 0) { document.getElementById('f-desc').focus(); return; }
+
+  if (editId) {
+    // Edit: update single transaction only
+    const instTotal   = freq==='תשלומים' ? parseInt(document.getElementById('f-inst-total').value)||0 : 0;
+    const instCurrent = freq==='תשלומים' ? parseInt(document.getElementById('f-inst-current').value)||1 : 0;
+    const idx = state.transactions.findIndex(t=>t.id===editId);
+    if (idx !== -1) state.transactions[idx] = { id:editId, date, description:desc, category:cat, type, amount, method, freq, instTotal, instCurrent };
+    cancelEdit();
+  } else if (freq === 'תשלומים') {
+    // Installments: create one entry with tracking, single transaction
+    const instTotal   = parseInt(document.getElementById('f-inst-total').value) || 0;
+    const instCurrent = parseInt(document.getElementById('f-inst-current').value) || 1;
+    state.transactions.unshift({ id: Date.now().toString(), date, description: desc, category: cat, type, amount, method, freq, instTotal, instCurrent });
+    resetForm();
+  } else if (freq !== 'חד פעמי') {
+    // Recurring: generate future entries until chosen date
+    const until = document.getElementById('f-until').value;
+    if (!until || until <= date) { alert('נא לבחור תאריך סיום עתידי'); return; }
+    const months = FREQ_MONTHS[freq] || 1;
+    const entries = [];
+    let cur = date;
+    let idx = 0;
+    while (cur <= until) {
+      entries.push({ id: (Date.now() + idx).toString(), date: cur, description: desc, category: cat, type, amount, method, freq, instTotal: 0, instCurrent: 0 });
+      cur = addMonths(cur, months);
+      idx++;
+      if (idx > 500) break; // safety
+    }
+    state.transactions.unshift(...entries);
+    resetForm();
+  } else {
+    // One-time
+    state.transactions.unshift({ id: Date.now().toString(), date, description: desc, category: cat, type, amount, method, freq, instTotal: 0, instCurrent: 0 });
+    resetForm();
+  }
+
+  save(); updateHeader(); renderTable(); renderForecast();
+}
+
+function resetForm() {
+  document.getElementById('f-desc').value   = '';
+  document.getElementById('f-amount').value = '';
+  document.getElementById('f-date').value   = todayStr();
+  document.getElementById('f-method').value = '';
+  document.getElementById('f-freq').value   = 'חד פעמי';
+  document.getElementById('f-type').value   = 'הוצאה';
+  document.getElementById('f-until').value  = '';
+  document.getElementById('f-inst-total').value   = '';
+  document.getElementById('f-inst-current').value = '';
+  onFreqChange();
+}
+
+function editRow(id) {
+  const t = state.transactions.find(x=>x.id===id);
+  if (!t) return;
+  editId = id;
+  document.getElementById('f-date').value   = t.date;
+  document.getElementById('f-desc').value   = t.description;
+  document.getElementById('f-cat').value    = t.category;
+  document.getElementById('f-type').value   = t.type;
+  document.getElementById('f-amount').value = t.amount;
+  document.getElementById('f-method').value = t.method || '';
+  document.getElementById('f-freq').value   = t.freq   || 'חד פעמי';
+  document.getElementById('f-inst-total').value   = t.instTotal   || '';
+  document.getElementById('f-inst-current').value = t.instCurrent || '';
+  onFreqChange();
+  document.getElementById('form-panel-title').textContent = '✏️ עריכת עסקה';
+  document.getElementById('submit-btn').textContent = 'עדכן עסקה';
+  document.getElementById('cancel-btn').style.display = '';
+  document.getElementById('form-panel-body').classList.remove('hidden');
+  document.getElementById('form-panel-head').classList.add('open');
+  document.getElementById('f-desc').focus();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function cancelEdit() {
+  editId = null;
+  document.getElementById('form-panel-title').textContent = '➕ הוספת עסקה';
+  document.getElementById('submit-btn').textContent = 'הוסף עסקה';
+  document.getElementById('cancel-btn').style.display = 'none';
+  resetForm();
+}
+
+// ─── DELETE ──────────────────────────────────────────────────────────────
+function requestDelete(id) { pendingDelete[id]=true; renderTable(); }
+function cancelDelete(id)  { delete pendingDelete[id]; renderTable(); }
+function confirmDelete(id) {
+  state.transactions = state.transactions.filter(t=>t.id!==id);
+  delete pendingDelete[id];
+  save(); updateHeader(); renderTable(); renderForecast();
+}
+
+// ─── FILTERS ─────────────────────────────────────────────────────────────
+function clearFilters() {
+  ['search-box'].forEach(id => document.getElementById(id).value='');
+  ['filter-type','filter-cat','filter-method','filter-period'].forEach(id => document.getElementById(id).value='');
+  document.getElementById('show-future').checked = true;
+  renderTable();
+}
+
+// ─── PANEL TOGGLE ────────────────────────────────────────────────────────
+function togglePanel(id) {
+  const head = document.getElementById(id+'-head'), body = document.getElementById(id+'-body');
+  const open = head.classList.toggle('open');
+  body.classList.toggle('hidden', !open);
+}
+
+// ─── BALANCE MODAL ───────────────────────────────────────────────────────
+function openBalanceModal() {
+  document.getElementById('modal-balance-dt').value = nowLocal();
+  if (state.anchor) document.getElementById('modal-balance-val').value = state.anchor.value;
+  document.getElementById('modal-overlay').classList.add('show');
+  setTimeout(()=>document.getElementById('modal-balance-val').focus(), 80);
+}
+function closeBalanceModal() { document.getElementById('modal-overlay').classList.remove('show'); }
+function saveBalance() {
+  const val = parseFloat(document.getElementById('modal-balance-val').value);
+  const dt  = document.getElementById('modal-balance-dt').value;
+  if (isNaN(val)||!dt) return;
+  state.anchor = {value:val, datetime:dt};
+  save(); updateHeader(); renderForecast(); closeBalanceModal();
+}
+document.getElementById('modal-overlay').addEventListener('click', function(e){ if(e.target===this) closeBalanceModal(); });
+document.getElementById('modal-balance-val').addEventListener('keydown', e=>{ if(e.key==='Enter') saveBalance(); });
+
+// ─── INIT ────────────────────────────────────────────────────────────────
+load();
+document.getElementById('f-date').value = todayStr();
+document.getElementById('billing-start-day').value = state.billingStartDay;
+populateCatSelects();
+renderCatSettings();
+updatePeriodPreview();
+onFreqChange();
+document.getElementById('forecast-date').value = currentBillingPeriod().end;
+updateHeader(); renderTable(); renderForecast();
+
+['f-desc','f-amount'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e=>{ if(e.key==='Enter') submitForm(); });
+});
+
+// ─── SERVICE WORKER ───────────────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
