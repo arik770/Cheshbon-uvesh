@@ -460,18 +460,31 @@ function onFreqChange() {
 }
 
 // ─── BILLING PERIOD ──────────────────────────────────────────────────────
+function localDateStr(yr, mo, day) {
+  const d = new Date(yr, mo, day);
+  const y  = d.getFullYear();
+  const m  = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+
 function currentBillingPeriod() {
   const d = parseInt(state.billingStartDay) || 1;
   const now = new Date(), yr = now.getFullYear(), mo = now.getMonth(), day = now.getDate();
-  let startDate, endDate;
+  let start, end;
   if (d === 1) {
-    startDate = new Date(yr, mo, 1);
-    endDate   = new Date(yr, mo + 1, 0);
+    start = localDateStr(yr, mo, 1);
+    end   = localDateStr(yr, mo + 1, 0);
   } else {
-    if (day >= d) { startDate = new Date(yr, mo, d); endDate = new Date(yr, mo + 1, d - 1); }
-    else          { startDate = new Date(yr, mo - 1, d); endDate = new Date(yr, mo, d - 1); }
+    if (day >= d) {
+      start = localDateStr(yr, mo, d);
+      end   = localDateStr(yr, mo + 1, d - 1);
+    } else {
+      start = localDateStr(yr, mo - 1, d);
+      end   = localDateStr(yr, mo, d - 1);
+    }
   }
-  return { start: startDate.toISOString().slice(0,10), end: endDate.toISOString().slice(0,10) };
+  return { start, end };
 }
 
 function updatePeriodPreview() {
