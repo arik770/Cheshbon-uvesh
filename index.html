@@ -181,11 +181,11 @@
         <div id="balance-anchor-info">—</div>
       </div>
       <div class="stat-block">
-        <div class="s-label">הכנסות (כל הזמנים)</div>
+        <div class="s-label" id="stat-income-label">הכנסות (חודש נוכחי)</div>
         <div class="s-value s-income" id="stat-income">₪0.00</div>
       </div>
       <div class="stat-block">
-        <div class="s-label">הוצאות (כל הזמנים)</div>
+        <div class="s-label" id="stat-expense-label">הוצאות (חודש נוכחי)</div>
         <div class="s-value s-expense" id="stat-expense">₪0.00</div>
       </div>
       <div class="stat-block">
@@ -251,9 +251,9 @@
           </select>
         </div>
 
-        <!-- shown when recurring -->
-        <div id="recurring-until">
-          <div class="field w-med"><label>צור עסקאות עד תאריך</label><input type="date" id="f-until"></div>
+        <!-- recurring: no end date needed - entries exist as long as not deleted -->
+        <div id="recurring-until" style="display:none">
+          <input type="hidden" id="f-until">
         </div>
 
         <!-- shown when installments -->
@@ -437,8 +437,19 @@ function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
 
 // ─── UTILS ────────────────────────────────────────────────────────────────
 function fmt(n) { return new Intl.NumberFormat('he-IL',{style:'currency',currency:'ILS',minimumFractionDigits:2}).format(n); }
-function todayStr()   { return new Date().toISOString().slice(0,10); }
-function nowLocal()   { return new Date().toISOString().slice(0,16); }
+function _pad(n){ return String(n).padStart(2,'0'); }
+function localDateStr(yr, mo, day) {
+  const d = new Date(yr, mo, day);
+  return d.getFullYear()+'-'+_pad(d.getMonth()+1)+'-'+_pad(d.getDate());
+}
+function todayStr() {
+  const n = new Date();
+  return localDateStr(n.getFullYear(), n.getMonth(), n.getDate());
+}
+function nowLocal() {
+  const n = new Date();
+  return localDateStr(n.getFullYear(),n.getMonth(),n.getDate())+'T'+_pad(n.getHours())+':'+_pad(n.getMinutes());
+}
 function dateStr(iso) { return iso.split('-').reverse().join('/'); }
 function escHtml(s)   { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
@@ -452,10 +463,7 @@ function addMonths(isoDate, n) {
 // ─── FORM: FREQUENCY TOGGLE ──────────────────────────────────────────────
 function onFreqChange() {
   const freq = document.getElementById('f-freq').value;
-  const isRecurring    = freq !== 'חד פעמי' && freq !== 'תשלומים';
   const isInstallments = freq === 'תשלומים';
-
-  document.getElementById('recurring-until').className   = isRecurring    ? 'show' : '';
   document.getElementById('installment-fields').className = isInstallments ? 'show' : '';
 }
 
@@ -551,10 +559,13 @@ function computeBalance(upToDate) {
 
 function updateHeader() {
   const balance    = computeBalance(todayStr());
-  const allIncome  = state.transactions.filter(t=>t.type==='הכנסה').reduce((s,t)=>s+t.amount,0);
-  const allExpense = state.transactions.filter(t=>t.type==='הוצאה').reduce((s,t)=>s+t.amount,0);
-  document.getElementById('stat-income').textContent  = fmt(allIncome);
-  document.getElementById('stat-expense').textContent = fmt(allExpense);
+  const { start: bpS, end: bpE } = currentBillingPeriod();
+  const today = todayStr();
+  const periodTx = state.transactions.filter(t => t.date >= bpS && t.date <= today);
+  const periodIncome  = periodTx.filter(t=>t.type==='הכנסה').reduce((s,t)=>s+t.amount,0);
+  const periodExpense = periodTx.filter(t=>t.type==='הוצאה').reduce((s,t)=>s+t.amount,0);
+  document.getElementById('stat-income').textContent  = fmt(periodIncome);
+  document.getElementById('stat-expense').textContent = fmt(periodExpense);
   document.getElementById('stat-count').textContent   = state.transactions.length;
   const bv = document.getElementById('balance-value'), bi = document.getElementById('balance-anchor-info');
   if (balance === null) {
@@ -577,8 +588,8 @@ function renderForecast() {
     document.getElementById('forecast-note').textContent = 'בחר תאריך יעד כדי לראות תחזית';
     return;
   }
-  const tom = new Date(); tom.setDate(tom.getDate()+1);
-  const tomStr = tom.toISOString().slice(0,10);
+  const _t = new Date(); _t.setDate(_t.getDate()+1);
+  const tomStr = localDateStr(_t.getFullYear(), _t.getMonth(), _t.getDate());
   let fi = 0, fe = 0;
   for (const t of state.transactions) {
     if (t.date >= tomStr && t.date <= fd) { t.type === 'הכנסה' ? fi += t.amount : fe += t.amount; }
@@ -725,18 +736,18 @@ function submitForm() {
     state.transactions.unshift({ id: Date.now().toString(), date, description: desc, category: cat, type, amount, method, freq, instTotal, instCurrent });
     resetForm();
   } else if (freq !== 'חד פעמי') {
-    // Recurring: generate future entries until chosen date
-    const until = document.getElementById('f-until').value;
-    if (!until || until <= date) { alert('נא לבחור תאריך סיום עתידי'); return; }
+    // Recurring: save as single entry with recurrence flag — repeats indefinitely
+    // Generate occurrences from start date, 3 years ahead (can always add more later)
     const months = FREQ_MONTHS[freq] || 1;
+    const limitDate = '2099-12-31';
     const entries = [];
     let cur = date;
     let idx = 0;
-    while (cur <= until) {
+    while (cur <= limitDate) {
       entries.push({ id: (Date.now() + idx).toString(), date: cur, description: desc, category: cat, type, amount, method, freq, instTotal: 0, instCurrent: 0 });
       cur = addMonths(cur, months);
       idx++;
-      if (idx > 500) break; // safety
+      if (idx > 500) break;
     }
     state.transactions.unshift(...entries);
     resetForm();
@@ -756,7 +767,6 @@ function resetForm() {
   document.getElementById('f-method').value = '';
   document.getElementById('f-freq').value   = 'חד פעמי';
   document.getElementById('f-type').value   = 'הוצאה';
-  document.getElementById('f-until').value  = '';
   document.getElementById('f-inst-total').value   = '';
   document.getElementById('f-inst-current').value = '';
   onFreqChange();
