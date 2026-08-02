@@ -188,10 +188,7 @@
         <div class="s-label" id="stat-expense-label">הוצאות (חודש נוכחי)</div>
         <div class="s-value s-expense" id="stat-expense">₪0.00</div>
       </div>
-      <div class="stat-block">
-        <div class="s-label">עסקאות</div>
-        <div class="s-value s-count" id="stat-count">0</div>
-      </div>
+
       <button class="hdr-btn" onclick="openBalanceModal()">⚖ עדכן יתרה נוכחית</button>
     </div>
   </div>
@@ -416,7 +413,8 @@ let state = {
   anchor: null,
   transactions: [],
   categories: [...DEFAULT_CATEGORIES],
-  billingStartDay: 1
+  billingStartDay: 1,
+  prefs: { showFuture: true, filterType: '', filterCat: '', filterMethod: '', filterPeriod: '' }
 };
 let sortField = 'date', sortDir = 'desc', editId = null;
 const pendingDelete = {};
@@ -566,7 +564,6 @@ function updateHeader() {
   const periodExpense = periodTx.filter(t=>t.type==='הוצאה').reduce((s,t)=>s+t.amount,0);
   document.getElementById('stat-income').textContent  = fmt(periodIncome);
   document.getElementById('stat-expense').textContent = fmt(periodExpense);
-  document.getElementById('stat-count').textContent   = state.transactions.length;
   const bv = document.getElementById('balance-value'), bi = document.getElementById('balance-anchor-info');
   if (balance === null) {
     bv.textContent = '—'; bv.className = '';
@@ -580,7 +577,8 @@ function updateHeader() {
 
 // ─── FORECAST ────────────────────────────────────────────────────────────
 function renderForecast() {
-  const fd = document.getElementById('forecast-date').value, today = todayStr();
+  const fd = document.getElementById('forecast-date').value;
+  const today = todayStr();
   const current = computeBalance(today);
   document.getElementById('fc-current').textContent = current === null ? '—' : fmt(current);
   if (!fd) {
@@ -588,22 +586,45 @@ function renderForecast() {
     document.getElementById('forecast-note').textContent = 'בחר תאריך יעד כדי לראות תחזית';
     return;
   }
+  if (!state.anchor) {
+    document.getElementById('forecast-note').textContent = 'יש להגדיר יתרה נוכחית תחילה';
+    return;
+  }
+  // Future = from tomorrow up to and INCLUDING the forecast date
+  // Exclude anything before anchor date (already counted in current balance)
+  const anchorDate = state.anchor.datetime.slice(0,10);
   const _t = new Date(); _t.setDate(_t.getDate()+1);
   const tomStr = localDateStr(_t.getFullYear(), _t.getMonth(), _t.getDate());
+  // Start from whichever is later: tomorrow or anchor date
+  const fromStr = tomStr > anchorDate ? tomStr : anchorDate;
   let fi = 0, fe = 0;
   for (const t of state.transactions) {
-    if (t.date >= tomStr && t.date <= fd) { t.type === 'הכנסה' ? fi += t.amount : fe += t.amount; }
+    if (t.date >= fromStr && t.date <= fd) {
+      t.type === 'הכנסה' ? fi += t.amount : fe += t.amount;
+    }
   }
   const proj = (current||0) + fi - fe;
   const el = document.getElementById('fc-projected');
   el.textContent = fmt(proj); el.className = 'fc-value ' + (proj >= 0 ? 'fc-pos' : 'fc-neg');
   document.getElementById('fc-income-future').textContent  = fmt(fi);
   document.getElementById('fc-expense-future').textContent = fmt(fe);
-  const cnt = state.transactions.filter(t=>t.date>=tomStr&&t.date<=fd).length;
-  document.getElementById('forecast-note').textContent = `מבוסס על ${cnt} עסקה/ות עתידיות בין מחר ל־${dateStr(fd)}`;
+  const cnt = state.transactions.filter(t => t.date >= fromStr && t.date <= fd).length;
+  document.getElementById('forecast-note').textContent =
+    `מבוסס על ${cnt} עסקה/ות בין ${dateStr(fromStr)} ל־${dateStr(fd)}`;
 }
 
 // ─── TABLE ────────────────────────────────────────────────────────────────
+function savePrefs() {
+  state.prefs = {
+    showFuture:   document.getElementById('show-future').checked,
+    filterType:   document.getElementById('filter-type').value,
+    filterCat:    document.getElementById('filter-cat').value,
+    filterMethod: document.getElementById('filter-method').value,
+    filterPeriod: document.getElementById('filter-period').value,
+  };
+  save();
+}
+
 function getFiltered() {
   const q = document.getElementById('search-box').value.trim().toLowerCase();
   const ft = document.getElementById('filter-type').value;
@@ -630,10 +651,17 @@ function getFiltered() {
 }
 
 function sortRows(rows) {
+  const today = todayStr();
   return [...rows].sort((a,b) => {
+    // When sorting by date: past/today first (desc), then future ascending
+    if (sortField==='date') {
+      const aFut = a.date > today, bFut = b.date > today;
+      if (aFut !== bFut) return aFut ? 1 : -1; // future always last
+      if (sortDir==='desc') return b.date < a.date ? -1 : b.date > a.date ? 1 : 0;
+      return a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
+    }
     let va, vb;
-    if (sortField==='date')   { va=a.date; vb=b.date; }
-    else if (sortField==='desc')   { va=a.description; vb=b.description; }
+    if (sortField==='desc')   { va=a.description; vb=b.description; }
     else if (sortField==='cat')    { va=a.category; vb=b.category; }
     else if (sortField==='type')   { va=a.type; vb=b.type; }
     else if (sortField==='amount') { va=a.amount; vb=b.amount; }
@@ -645,6 +673,7 @@ function sortRows(rows) {
 }
 
 function renderTable() {
+  savePrefs();
   const today    = todayStr();
   const filtered = sortRows(getFiltered());
   const tbody = document.getElementById('tbody'), tfoot = document.getElementById('tfoot');
@@ -853,6 +882,13 @@ populateCatSelects();
 renderCatSettings();
 updatePeriodPreview();
 onFreqChange();
+// Restore saved filter prefs
+const pr = state.prefs || {};
+document.getElementById('show-future').checked       = pr.showFuture !== false;
+document.getElementById('filter-type').value         = pr.filterType   || '';
+document.getElementById('filter-cat').value          = pr.filterCat    || '';
+document.getElementById('filter-method').value       = pr.filterMethod || '';
+document.getElementById('filter-period').value       = pr.filterPeriod || '';
 document.getElementById('forecast-date').value = currentBillingPeriod().end;
 updateHeader(); renderTable(); renderForecast();
 
