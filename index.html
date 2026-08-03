@@ -723,13 +723,16 @@ function getFiltered() {
   const { start: bps, end: bpe } = currentBillingPeriod();
 
   return state.transactions.filter(t => {
-    if (!showFuture && effectiveDate(t) > today) return false;
+    const ed = effectiveDate(t);
+    // When filtering by billing period, always show items in that period (even if future)
+    // Otherwise respect the showFuture toggle
+    const inBillingPeriod = fp === 'billing' && ed >= bps && ed <= bpe;
+    if (!showFuture && ed > today && !inBillingPeriod) return false;
     if (ft && t.type !== ft) return false;
     if (fc && t.category !== fc) return false;
     if (fm && t.method !== fm) return false;
     if (q && !t.description.toLowerCase().includes(q) && !t.category.toLowerCase().includes(q)) return false;
     if (fp) {
-      const ed = effectiveDate(t);
       if (fp === 'billing') { if (ed < bps || ed > bpe) return false; }
       else if (fp === 'year') { if (!ed.startsWith(new Date().getFullYear().toString())) return false; }
       else { const cut = new Date(); cut.setDate(cut.getDate()-parseInt(fp)); if (new Date(ed+'T00:00:00') < cut) return false; }
