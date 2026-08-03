@@ -225,10 +225,15 @@ body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:var(--bg);color:v
             <option value="חד פעמי">חד פעמי</option>
             <option value="חודשי">חודשי</option>
             <option value="חודשיים">כל חודשיים</option>
-            <option value="רבעוני">רבעוני</option>
             <option value="שנתי">שנתי</option>
-            <option value="תשלומים">תשלומים</option>
           </select>
+        </div>
+        <div id="installment-toggle" style="display:none">
+          <div class="field" style="justify-content:flex-end;padding-bottom:2px">
+            <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer">
+              <input type="checkbox" id="f-is-installments" onchange="onFreqChange()"> תשלומים
+            </label>
+          </div>
         </div>
         <div id="installment-fields">
           <div class="field" style="width:80px"><label>סה&quot;כ תשלומים</label><input type="number" id="f-inst-total" min="2" max="120" placeholder="12"></div>
@@ -266,7 +271,6 @@ body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:var(--bg);color:v
             <option value="אשראי">אשראי</option>
             <option value="מזומן">מזומן</option>
           </select>
-          <label class="toolbar-check"><input type="checkbox" id="show-future" onchange="renderTable()" checked> עתידיות</label>
           <label class="toolbar-check"><input type="checkbox" id="lock-order" onchange="renderTable()"> 🔒 נעל</label>
           <button class="btn-icon" id="search-toggle-btn" onclick="toggleSearch()" title="חיפוש">🔍</button>
           <button class="btn-secondary" onclick="clearFilters()" style="font-size:12px;padding:5px 9px">נקה</button>
@@ -407,7 +411,7 @@ body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:var(--bg);color:v
 // ─── CONSTANTS ────────────────────────────────────────────────────────────
 const STORAGE_KEY = 'cheshbon_v5';
 const DEFAULT_CATEGORIES = ['משכורת','שכר דירה','אוכל','דלק','חשבונות','טלפון / אינטרנט','בידור','בריאות','ביגוד','חיסכון','תחבורה','ביטוח','מסעדות','קניות','תרומה','אחר'];
-const FREQ_MONTHS = {'חודשי':1,'חודשיים':2,'רבעוני':3,'שנתי':12};
+const FREQ_MONTHS = {'חודשי':1,'חודשיים':2,'שנתי':12};
 
 // ─── STATE ────────────────────────────────────────────────────────────────
 let state = {
@@ -600,7 +604,6 @@ function renderForecast() {
 // ─── RENDER TABLE ─────────────────────────────────────────────────────────
 function savePrefs() {
   state.prefs={
-    showFuture: document.getElementById('show-future').checked,
     lockOrder:  document.getElementById('lock-order').checked,
     filterType: document.getElementById('filter-type').value,
     filterCat:  document.getElementById('filter-cat').value,
@@ -621,18 +624,11 @@ function getFiltered(){
   const ft=document.getElementById('filter-type').value;
   const fc=document.getElementById('filter-cat').value;
   const fm=document.getElementById('filter-method').value;
-  const showFuture=document.getElementById('show-future').checked;
-  const today=todayStr();
   return state.transactions.filter(t=>{
     if(ft && t.type!==ft) return false;
     if(fc && t.category!==fc) return false;
     if(fm && t.method!==fm) return false;
     if(q && !(t.description||'').toLowerCase().includes(q) && !t.category.toLowerCase().includes(q)) return false;
-    if(!showFuture){
-      // hide if ALL occurrences this year are in the future
-      const ed=effectiveDate(t.date, t.billingDay);
-      if(ed>today && (t.freq==='חד פעמי'||!t.freq||t.freq==='תשלומים')) return false;
-    }
     return true;
   });
 }
@@ -653,25 +649,30 @@ function renderTable(){
 
   tbody.innerHTML=filtered.map(tx=>{
     const isRecurring = tx.freq && tx.freq!=='חד פעמי' && tx.freq!=='תשלומים';
-    // For display: use the next upcoming effective date (or first if all past)
+    // For display: prefer occurrence in current billing period, else next upcoming
     let displayEffDate=effectiveDate(tx.date, tx.billingDay);
     if(isRecurring){
       const occs=getOccurrences(tx,'2099-12-31');
-      const future=occs.find(o=>o.effDate>=today);
-      displayEffDate=future?future.effDate:occs[occs.length-1]?.effDate||displayEffDate;
+      // 1. occurrence in current billing period
+      const inPeriod=occs.find(o=>o.effDate>=bpS&&o.effDate<=bpE);
+      // 2. next upcoming after today
+      const upcoming=occs.find(o=>o.effDate>=today);
+      // 3. last known
+      const last=occs[occs.length-1];
+      displayEffDate=(inPeriod||upcoming||last)?.effDate||displayEffDate;
     }
     const isFuture=displayEffDate>today;
     const isIncome=tx.type==='הכנסה';
-    if(!isFuture){ isIncome?totalIncome+=tx.amount:totalExpense+=tx.amount; }
+    // totals handled by billing period summary below
 
     const amtClass=isFuture?'amt-future':(isIncome?'amt-income':'amt-expense');
-    const typeTag=isFuture?`<span class="tag tag-future">עתידי 🔹</span>`:`<span class="tag ${isIncome?'tag-income':'tag-expense'}">${tx.type}</span>`;
+    const typeTag=`<span class="tag ${isIncome?'tag-income':'tag-expense'}">${tx.type}</span>`;
 
     const tags=[typeTag];
     if(tx.category) tags.push(`<span class="tag tag-cat">${escHtml(tx.category)}</span>`);
     if(tx.method)   tags.push(`<span class="tag tag-method">${escHtml(tx.method)}</span>`);
     if(isRecurring) tags.push(`<span class="tag tag-recur">${escHtml(tx.freq)}</span>`);
-    if(tx.freq==='תשלומים'&&tx.instTotal) tags.push(`<span class="tag tag-inst">${tx.instCurrent}/${tx.instTotal}</span>`);
+    if(tx.instTotal) tags.push(`<span class="tag tag-inst">${tx.instCurrent}/${tx.instTotal}</span>`);
 
     const dateDisplay = tx.billingDay
       ? `<span style="color:var(--muted)">עסקה: ${dateStr(tx.date)}</span> <span style="color:var(--navy2);font-weight:600">חיוב: ${dateStr(displayEffDate)}</span>`
@@ -687,7 +688,7 @@ function renderTable(){
           <button class="btn-icon del" onclick="requestDelete('${tx.id}')">🗑️</button>
         </span>`;
 
-    return `<div class="tx-card${isFuture?' future-card':''}" data-id="${tx.id}" draggable="${!locked}">
+    return `<div class="tx-card" data-id="${tx.id}" draggable="${!locked}">
       ${locked?'<div style="width:12px"></div>':'<div class="tx-drag-handle" title="גרור">⠿</div>'}
       <div class="tx-card-body">
         <div class="tx-card-top">
@@ -700,14 +701,38 @@ function renderTable(){
     </div>`;
   }).join('');
 
-  const net=totalIncome-totalExpense;
-  tfoot.innerHTML=`<div class="tx-summary"><span>סה"כ (${filtered.length} פריטים)</span><span style="color:${net>=0?'var(--income)':'var(--expense)'}">${net>=0?'+':''}${fmt(net)}</span></div>`;
+  // סה"כ = כל מה שמוצג שתאריך החיוב שלו בתוך תקופת החודש הנוכחי
+  const {start:bpS2,end:bpE2}=currentBillingPeriod();
+  let sumIncome=0, sumExpense=0;
+  for(const tx of filtered){
+    const isRecurring=tx.freq&&tx.freq!=='חד פעמי'&&tx.freq!=='תשלומים';
+    if(isRecurring){
+      const occs=getOccurrences(tx,bpE2);
+      for(const {effDate} of occs){
+        if(effDate>=bpS2&&effDate<=bpE2){
+          if(tx.type==='הכנסה') sumIncome+=tx.amount; else sumExpense+=tx.amount;
+        }
+      }
+    } else {
+      const ed=effectiveDate(tx.date,tx.billingDay);
+      if(ed>=bpS2&&ed<=bpE2){
+        if(tx.type==='הכנסה') sumIncome+=tx.amount; else sumExpense+=tx.amount;
+      }
+    }
+  }
+  const net=sumIncome-sumExpense;
+  tfoot.innerHTML=`<div class="tx-summary"><span>סה"כ חודש נוכחי (${filtered.length} פריטים)</span><span style="color:${net>=0?'var(--income)':'var(--expense)'}">${net>=0?'+':''}${fmt(net)}</span></div>`;
 }
 
 // ─── FORM ─────────────────────────────────────────────────────────────────
 function onFreqChange(){
   const freq=document.getElementById('f-freq').value;
-  document.getElementById('installment-fields').className=freq==='תשלומים'?'show':'';
+  const isRecurring=freq!=='חד פעמי';
+  const toggle=document.getElementById('installment-toggle');
+  toggle.style.display=isRecurring?'':'none';
+  if(!isRecurring) document.getElementById('f-is-installments').checked=false;
+  const isInst=isRecurring&&document.getElementById('f-is-installments').checked;
+  document.getElementById('installment-fields').className=isInst?'show':'';
 }
 
 function submitForm(){
@@ -719,8 +744,9 @@ function submitForm(){
   const method=document.getElementById('f-method').value;
   const freq=document.getElementById('f-freq').value;
   const billingDay=parseInt(document.getElementById('f-billing-day').value)||null;
-  const instTotal=freq==='תשלומים'?parseInt(document.getElementById('f-inst-total').value)||0:0;
-  const instCurrent=freq==='תשלומים'?parseInt(document.getElementById('f-inst-current').value)||1:0;
+  const isInst=freq!=='חד פעמי'&&document.getElementById('f-is-installments').checked;
+  const instTotal=isInst?parseInt(document.getElementById('f-inst-total').value)||0:0;
+  const instCurrent=isInst?parseInt(document.getElementById('f-inst-current').value)||1:0;
 
   if(isNaN(amount)||amount<=0){ document.getElementById('f-amount').focus(); return; }
 
@@ -743,6 +769,7 @@ function resetForm(){
   document.getElementById('f-method').value='';
   document.getElementById('f-freq').value='חד פעמי';
   document.getElementById('f-type').value='הוצאה';
+  document.getElementById('f-is-installments').checked=false;
   onFreqChange();
 }
 
@@ -779,6 +806,7 @@ function startEdit(tx, fromNow){
   document.getElementById('f-method').value=tx.method||'';
   document.getElementById('f-freq').value=tx.freq||'חד פעמי';
   document.getElementById('f-billing-day').value=tx.billingDay||'';
+  document.getElementById('f-is-installments').checked=!!(tx.instTotal);
   document.getElementById('f-inst-total').value=tx.instTotal||'';
   document.getElementById('f-inst-current').value=tx.instCurrent||'';
   onFreqChange();
@@ -870,8 +898,7 @@ function doReset(){
 }
 function clearFilters(){
   ['filter-type','filter-cat','filter-method'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('show-future').checked=true;
-  document.getElementById('lock-order').checked=false;
+    document.getElementById('lock-order').checked=false;
   document.getElementById('search-box').value='';
   document.getElementById('toolbar-row2').style.display='none';
   renderTable();
@@ -905,7 +932,6 @@ document.getElementById('f-date').value=todayStr();
 document.getElementById('billing-start-day').value=state.billingStartDay;
 populateCatSelects(); renderCatSettings(); updatePeriodPreview(); onFreqChange();
 const pr=state.prefs||{};
-document.getElementById('show-future').checked=pr.showFuture!==false;
 document.getElementById('lock-order').checked=pr.lockOrder||false;
 document.getElementById('filter-type').value=pr.filterType||'';
 document.getElementById('filter-cat').value=pr.filterCat||'';
