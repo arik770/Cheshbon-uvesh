@@ -478,7 +478,27 @@ function escHtml(s)   { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt
 function addMonths(isoDate, n) {
   const d = new Date(isoDate + 'T00:00:00');
   d.setMonth(d.getMonth() + n);
-  return d.toISOString().slice(0,10);
+  return localDateStr(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+// Effective date = the date that actually moves money.
+// If billingDay is set:
+//   - if billingDay >= day of t.date → billing is same month (e.g. purchase 5th, billing 28th → same month)
+//   - if billingDay <  day of t.date → billing is next month  (e.g. purchase 28th, billing 1st → next month)
+function effectiveDate(t) {
+  if (!t.billingDay) return t.date;
+  const d = new Date(t.date + 'T00:00:00');
+  const purchaseDay = d.getDate();
+  let yr = d.getFullYear(), mo = d.getMonth(); // 0-indexed
+  if (t.billingDay < purchaseDay) {
+    // billing falls next month
+    mo += 1;
+    if (mo > 11) { mo = 0; yr += 1; }
+  }
+  // clamp to last day of target month
+  const lastDay = new Date(yr, mo + 1, 0).getDate();
+  const day = Math.min(t.billingDay, lastDay);
+  return localDateStr(yr, mo, day);
 }
 
 // ─── FORM: FREQUENCY TOGGLE ──────────────────────────────────────────────
@@ -572,7 +592,8 @@ function computeBalance(upToDate) {
   const cutoff = upToDate || todayStr();
   let delta = 0;
   for (const t of state.transactions) {
-    if (t.date >= anchorDate && t.date <= cutoff)
+    const ed = effectiveDate(t);
+    if (ed >= anchorDate && ed <= cutoff)
       delta += t.type === 'הכנסה' ? t.amount : -t.amount;
   }
   return state.anchor.value + delta;
@@ -584,7 +605,8 @@ function computeSavings(upToDate) {
   const cutoff = upToDate || todayStr();
   let delta = 0;
   for (const t of state.transactions) {
-    if (t.category === 'חיסכון' && t.date >= anchorDate && t.date <= cutoff) {
+    const ed = effectiveDate(t);
+    if (t.category === 'חיסכון' && ed >= anchorDate && ed <= cutoff) {
       // expense → money moves FROM balance TO savings (+savings)
       // income  → money moves FROM savings TO balance (-savings)
       delta += t.type === 'הוצאה' ? t.amount : -t.amount;
@@ -597,7 +619,7 @@ function updateHeader() {
   const balance    = computeBalance(todayStr());
   const { start: bpS, end: bpE } = currentBillingPeriod();
   const today = todayStr();
-  const periodTx = state.transactions.filter(t => t.date >= bpS && t.date <= today);
+  const periodTx = state.transactions.filter(t => { const ed=effectiveDate(t); return ed >= bpS && ed <= today; });
   const periodIncome  = periodTx.filter(t=>t.type==='הכנסה').reduce((s,t)=>s+t.amount,0);
   const periodExpense = periodTx.filter(t=>t.type==='הוצאה').reduce((s,t)=>s+t.amount,0);
   document.getElementById('stat-income').textContent  = fmt(periodIncome);
@@ -650,7 +672,8 @@ function renderForecast() {
   const fromStr = tomStr > anchorDate ? tomStr : anchorDate;
   let fi = 0, fe = 0;
   for (const t of state.transactions) {
-    if (t.date >= fromStr && t.date <= fd) {
+    const ed = effectiveDate(t);
+    if (ed >= fromStr && ed <= fd) {
       t.type === 'הכנסה' ? fi += t.amount : fe += t.amount;
     }
   }
@@ -659,7 +682,7 @@ function renderForecast() {
   el.textContent = fmt(proj); el.className = 'fc-value ' + (proj >= 0 ? 'fc-pos' : 'fc-neg');
   document.getElementById('fc-income-future').textContent  = fmt(fi);
   document.getElementById('fc-expense-future').textContent = fmt(fe);
-  const cnt = state.transactions.filter(t => t.date >= fromStr && t.date <= fd).length;
+  const cnt = state.transactions.filter(t => { const ed=effectiveDate(t); return ed >= fromStr && ed <= fd; }).length;
   document.getElementById('forecast-note').textContent =
     `מבוסס על ${cnt} עסקה/ות בין ${dateStr(fromStr)} ל־${dateStr(fd)}`;
 }
@@ -700,15 +723,16 @@ function getFiltered() {
   const { start: bps, end: bpe } = currentBillingPeriod();
 
   return state.transactions.filter(t => {
-    if (!showFuture && t.date > today) return false;
+    if (!showFuture && effectiveDate(t) > today) return false;
     if (ft && t.type !== ft) return false;
     if (fc && t.category !== fc) return false;
     if (fm && t.method !== fm) return false;
     if (q && !t.description.toLowerCase().includes(q) && !t.category.toLowerCase().includes(q)) return false;
     if (fp) {
-      if (fp === 'billing') { if (t.date < bps || t.date > bpe) return false; }
-      else if (fp === 'year') { if (!t.date.startsWith(new Date().getFullYear().toString())) return false; }
-      else { const cut = new Date(); cut.setDate(cut.getDate()-parseInt(fp)); if (new Date(t.date+'T00:00:00') < cut) return false; }
+      const ed = effectiveDate(t);
+      if (fp === 'billing') { if (ed < bps || ed > bpe) return false; }
+      else if (fp === 'year') { if (!ed.startsWith(new Date().getFullYear().toString())) return false; }
+      else { const cut = new Date(); cut.setDate(cut.getDate()-parseInt(fp)); if (new Date(ed+'T00:00:00') < cut) return false; }
     }
     return true;
   });
@@ -744,7 +768,8 @@ function renderTable() {
   let filtIncome = 0, filtExpense = 0;
 
   tbody.innerHTML = filtered.map(t => {
-    const isFuture = t.date > today;
+    const effDate  = effectiveDate(t);
+    const isFuture = effDate > today;
     const isIncome = t.type === 'הכנסה';
     if (!isFuture) { isIncome ? filtIncome += t.amount : filtExpense += t.amount; }
 
@@ -756,7 +781,7 @@ function renderTable() {
     const metaTags = [typeTag];
     if (t.category)   metaTags.push(`<span class="tag tag-cat">${escHtml(t.category)}</span>`);
     if (t.method)     metaTags.push(`<span class="tag tag-method">${escHtml(t.method)}</span>`);
-    if (t.billingDay) metaTags.push(`<span class="tag" style="background:#f0f9ff;color:#0369a1;font-size:10px">חיוב: ${t.billingDay}</span>`);
+
     if (t.freq && t.freq !== 'חד פעמי') metaTags.push(`<span class="tag tag-recur">${escHtml(t.freq)}</span>`);
     if (t.freq === 'תשלומים' && t.instTotal) metaTags.push(`<span class="tag tag-inst">${t.instCurrent}/${t.instTotal}</span>`);
 
@@ -775,7 +800,12 @@ function renderTable() {
       ${!document.getElementById('lock-order').checked ? '<div class="tx-drag-handle" title="גרור לשינוי סדר">⠿</div>' : '<div style="width:14px"></div>'}
       <div class="tx-card-body">
         <div class="tx-card-top">
-          <span class="tx-card-date">${dateStr(t.date)}</span>
+          <span class="tx-card-date">
+            ${t.billingDay
+              ? `<span style="color:var(--muted)">עסקה: ${dateStr(t.date)}</span>
+                 <span style="color:var(--navy2);font-weight:600;margin-right:6px">חיוב: ${dateStr(effDate)}</span>`
+              : dateStr(t.date)}
+          </span>
           <span class="tx-card-amount ${amtClass}">${isIncome?'+':'−'}${fmt(t.amount)}</span>
         </div>
         <div class="tx-card-desc">${escHtml(t.description)}</div>
