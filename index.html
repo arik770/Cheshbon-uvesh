@@ -98,14 +98,16 @@
   .btn-icon.del:hover { background: var(--expense-bg); }
 
   /* TOOLBAR */
-  #toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
-  #toolbar select, #toolbar input[type=text] { padding: 7px 11px; border-radius: 6px; border: 1px solid #d1d5db; font-size: 13px; background: #fff; color: var(--text); font-family: inherit; direction: rtl; }
-  #search-box { min-width: 160px; }
-  #toolbar label { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+  #toolbar { margin-bottom: 14px; }
+  #toolbar-row1 { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  #toolbar select { padding: 6px 10px; border-radius: 6px; border: 1px solid #d1d5db; font-size: 12px; background: #fff; color: var(--text); font-family: inherit; direction: rtl; }
+  #toolbar input[type=text] { padding: 7px 11px; border-radius: 6px; border: 1px solid #d1d5db; font-size: 13px; background: #fff; color: var(--text); font-family: inherit; direction: rtl; }
+  .toolbar-check { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+  #search-toggle-btn { padding: 5px 10px; font-size: 14px; }
 
   /* CARDS */
   #cards-wrap { display: flex; flex-direction: column; gap: 8px; }
-  .tx-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; transition: box-shadow .15s; display: flex; gap: 10px; align-items: stretch; }
+  .tx-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; transition: box-shadow .15s; display: flex; gap: 8px; align-items: stretch; }
   .tx-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,.09); }
   .tx-card.future-card { background: var(--future-bg); border-color: var(--future-border); }
   .tx-card.dragging { opacity: .4; box-shadow: 0 4px 20px rgba(0,0,0,.18); }
@@ -113,10 +115,10 @@
   .tx-drag-handle { display: flex; align-items: center; cursor: grab; color: #cbd5e1; font-size: 18px; padding: 0 2px; flex-shrink: 0; touch-action: none; }
   .tx-drag-handle:active { cursor: grabbing; }
   .tx-card-body { flex: 1; min-width: 0; }
-  .tx-card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 5px; }
+  .tx-card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 3px; }
   .tx-card-date { font-size: 12px; color: var(--muted); }
   .tx-card-amount { font-size: 17px; font-weight: 700; }
-  .tx-card-desc { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .tx-card-desc { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
   .tx-card-meta { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
   .tx-card-actions { display: flex; gap: 5px; margin-right: auto; }
   .tx-summary { background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; margin-top: 4px; font-size: 13px; font-weight: 700; color: var(--muted); }
@@ -216,7 +218,8 @@
       <!-- Row 1: basic -->
       <div class="form-section-label">פרטי עסקה</div>
       <div class="form-row">
-        <div class="field w-date"><label>תאריך</label><input type="date" id="f-date"></div>
+        <div class="field w-date"><label>תאריך עסקה</label><input type="date" id="f-date"></div>
+        <div class="field" style="width:90px"><label>יום חיוב</label><input type="number" id="f-billing-day" min="1" max="31" placeholder="1-31"></div>
         <div class="field w-desc"><label>תיאור / פירוט</label><input type="text" id="f-desc" placeholder="למשל: משכורת יולי"></div>
         <div class="field w-cat"><label>קטגוריה</label><select id="f-cat"></select></div>
         <div class="field w-sm"><label>סוג</label>
@@ -283,33 +286,41 @@
     </div>
     <div class="panel-body" id="table-panel-body">
       <div id="toolbar">
-        <input type="text" id="search-box" placeholder="🔍 חיפוש..." oninput="renderTable()">
-        <select id="filter-type" onchange="renderTable()">
-          <option value="">כל הסוגים</option>
-          <option value="הכנסה">הכנסות</option>
-          <option value="הוצאה">הוצאות</option>
-        </select>
-        <select id="filter-cat" onchange="renderTable()">
-          <option value="">כל הקטגוריות</option>
-        </select>
-        <select id="filter-method" onchange="renderTable()">
-          <option value="">כל אמצעי התשלום</option>
-          <option value="העברה">העברה בנקאית</option>
-          <option value="הוראת קבע">הוראת קבע</option>
-          <option value="הרשאה">הרשאה לחיוב</option>
-          <option value="אשראי">אשראי</option>
-          <option value="מזומן">מזומן</option>
-        </select>
-        <select id="filter-period" onchange="renderTable()">
-          <option value="">כל הזמנים</option>
-          <option value="billing">חודש חיוב נוכחי</option>
-          <option value="7">7 ימים אחרונים</option>
-          <option value="30">30 ימים אחרונים</option>
-          <option value="90">3 חודשים אחרונים</option>
-          <option value="year">השנה הנוכחית</option>
-        </select>
-        <label><input type="checkbox" id="show-future" onchange="renderTable()" checked> הצג עתידיות</label>
-        <button class="btn-secondary" onclick="clearFilters()" style="font-size:12px;padding:7px 12px">נקה סינון</button>
+        <!-- Row 1: filters + checkboxes + search icon -->
+        <div id="toolbar-row1">
+          <select id="filter-type" onchange="renderTable()">
+            <option value="">כל הסוגים</option>
+            <option value="הכנסה">הכנסות</option>
+            <option value="הוצאה">הוצאות</option>
+          </select>
+          <select id="filter-cat" onchange="renderTable()">
+            <option value="">כל הקטגוריות</option>
+          </select>
+          <select id="filter-method" onchange="renderTable()">
+            <option value="">כל אמצעי התשלום</option>
+            <option value="העברה">העברה בנקאית</option>
+            <option value="הוראת קבע">הוראת קבע</option>
+            <option value="הרשאה">הרשאה לחיוב</option>
+            <option value="אשראי">אשראי</option>
+            <option value="מזומן">מזומן</option>
+          </select>
+          <select id="filter-period" onchange="renderTable()">
+            <option value="">כל הזמנים</option>
+            <option value="billing">חודש חיוב נוכחי</option>
+            <option value="7">7 ימים אחרונים</option>
+            <option value="30">30 ימים אחרונים</option>
+            <option value="90">3 חודשים אחרונים</option>
+            <option value="year">השנה הנוכחית</option>
+          </select>
+          <label class="toolbar-check"><input type="checkbox" id="show-future" onchange="renderTable()" checked> עתידיות</label>
+          <label class="toolbar-check"><input type="checkbox" id="lock-order" onchange="toggleLockOrder()"> 🔒 נעל סדר</label>
+          <button class="btn-icon" id="search-toggle-btn" onclick="toggleSearch()" title="חיפוש">🔍</button>
+          <button class="btn-secondary" onclick="clearFilters()" style="font-size:12px;padding:6px 10px">נקה</button>
+        </div>
+        <!-- Row 2: search box (hidden by default) -->
+        <div id="toolbar-row2" style="display:none;margin-top:8px;">
+          <input type="text" id="search-box" placeholder="הקלד לחיפוש..." oninput="renderTable()" style="width:100%;">
+        </div>
       </div>
 
       <div id="cards-wrap">
@@ -654,9 +665,22 @@ function renderForecast() {
 }
 
 // ─── TABLE ────────────────────────────────────────────────────────────────
+function toggleSearch() {
+  const row2 = document.getElementById('toolbar-row2');
+  const box  = document.getElementById('search-box');
+  const open = row2.style.display === 'none';
+  row2.style.display = open ? '' : 'none';
+  if (open) { box.focus(); } else { box.value = ''; renderTable(); }
+}
+
+function toggleLockOrder() {
+  renderTable(); // drag handles hide/show based on checkbox
+}
+
 function savePrefs() {
   state.prefs = {
     showFuture:   document.getElementById('show-future').checked,
+    lockOrder:    document.getElementById('lock-order').checked,
     filterType:   document.getElementById('filter-type').value,
     filterCat:    document.getElementById('filter-cat').value,
     filterMethod: document.getElementById('filter-method').value,
@@ -730,8 +754,9 @@ function renderTable() {
       : `<span class="tag ${isIncome?'tag-income':'tag-expense'}">${t.type}</span>`;
 
     const metaTags = [typeTag];
-    if (t.category) metaTags.push(`<span class="tag tag-cat">${escHtml(t.category)}</span>`);
-    if (t.method)   metaTags.push(`<span class="tag tag-method">${escHtml(t.method)}</span>`);
+    if (t.category)   metaTags.push(`<span class="tag tag-cat">${escHtml(t.category)}</span>`);
+    if (t.method)     metaTags.push(`<span class="tag tag-method">${escHtml(t.method)}</span>`);
+    if (t.billingDay) metaTags.push(`<span class="tag" style="background:#f0f9ff;color:#0369a1;font-size:10px">חיוב: ${t.billingDay}</span>`);
     if (t.freq && t.freq !== 'חד פעמי') metaTags.push(`<span class="tag tag-recur">${escHtml(t.freq)}</span>`);
     if (t.freq === 'תשלומים' && t.instTotal) metaTags.push(`<span class="tag tag-inst">${t.instCurrent}/${t.instTotal}</span>`);
 
@@ -747,7 +772,7 @@ function renderTable() {
          </span>`;
 
     return `<div class="tx-card${isFuture?' future-card':''}" data-id="${t.id}" draggable="true">
-      <div class="tx-drag-handle" title="גרור לשינוי סדר">⠿</div>
+      ${!document.getElementById('lock-order').checked ? '<div class="tx-drag-handle" title="גרור לשינוי סדר">⠿</div>' : '<div style="width:14px"></div>'}
       <div class="tx-card-body">
         <div class="tx-card-top">
           <span class="tx-card-date">${dateStr(t.date)}</span>
@@ -876,20 +901,22 @@ function submitForm() {
   const method = document.getElementById('f-method').value;
   const freq   = document.getElementById('f-freq').value;
 
-  if (!desc || isNaN(amount) || amount <= 0) { document.getElementById('f-desc').focus(); return; }
+  if (isNaN(amount) || amount <= 0) { document.getElementById('f-amount').focus(); return; }
 
   if (editId) {
     // Edit: update single transaction only
     const instTotal   = freq==='תשלומים' ? parseInt(document.getElementById('f-inst-total').value)||0 : 0;
     const instCurrent = freq==='תשלומים' ? parseInt(document.getElementById('f-inst-current').value)||1 : 0;
     const idx = state.transactions.findIndex(t=>t.id===editId);
-    if (idx !== -1) state.transactions[idx] = { id:editId, date, description:desc, category:cat, type, amount, method, freq, instTotal, instCurrent };
+    const billingDay = parseInt(document.getElementById('f-billing-day').value) || null;
+    if (idx !== -1) state.transactions[idx] = { id:editId, date, description:desc, category:cat, type, amount, method, freq, instTotal, instCurrent, billingDay };
     cancelEdit();
   } else if (freq === 'תשלומים') {
     // Installments: create one entry with tracking, single transaction
     const instTotal   = parseInt(document.getElementById('f-inst-total').value) || 0;
     const instCurrent = parseInt(document.getElementById('f-inst-current').value) || 1;
-    state.transactions.unshift({ id: Date.now().toString(), date, description: desc, category: cat, type, amount, method, freq, instTotal, instCurrent });
+    const billingDay = parseInt(document.getElementById('f-billing-day').value) || null;
+    state.transactions.unshift({ id: Date.now().toString(), date, description: desc, category: cat, type, amount, method, freq, instTotal, instCurrent, billingDay });
     resetForm();
   } else if (freq !== 'חד פעמי') {
     // Recurring: save as single entry with recurrence flag — repeats indefinitely
@@ -900,7 +927,8 @@ function submitForm() {
     let cur = date;
     let idx = 0;
     while (cur <= limitDate) {
-      entries.push({ id: (Date.now() + idx).toString(), date: cur, description: desc, category: cat, type, amount, method, freq, instTotal: 0, instCurrent: 0 });
+      const billingDay = parseInt(document.getElementById('f-billing-day').value) || null;
+      entries.push({ id: (Date.now() + idx).toString(), date: cur, description: desc, category: cat, type, amount, method, freq, instTotal: 0, instCurrent: 0, billingDay });
       cur = addMonths(cur, months);
       idx++;
       if (idx > 500) break;
@@ -909,7 +937,8 @@ function submitForm() {
     resetForm();
   } else {
     // One-time
-    state.transactions.unshift({ id: Date.now().toString(), date, description: desc, category: cat, type, amount, method, freq, instTotal: 0, instCurrent: 0 });
+    const billingDay = parseInt(document.getElementById('f-billing-day').value) || null;
+    state.transactions.unshift({ id: Date.now().toString(), date, description: desc, category: cat, type, amount, method, freq, instTotal: 0, instCurrent: 0, billingDay });
     resetForm();
   }
 
@@ -925,6 +954,7 @@ function resetForm() {
   document.getElementById('f-freq').value   = 'חד פעמי';
   document.getElementById('f-type').value   = 'הוצאה';
   document.getElementById('f-inst-total').value   = '';
+  document.getElementById('f-billing-day').value  = '';
   document.getElementById('f-inst-current').value = '';
   onFreqChange();
 }
@@ -942,6 +972,7 @@ function editRow(id) {
   document.getElementById('f-freq').value   = t.freq   || 'חד פעמי';
   document.getElementById('f-inst-total').value   = t.instTotal   || '';
   document.getElementById('f-inst-current').value = t.instCurrent || '';
+  document.getElementById('f-billing-day').value  = t.billingDay  || '';
   onFreqChange();
   document.getElementById('form-panel-title').textContent = '✏️ עריכת עסקה';
   document.getElementById('submit-btn').textContent = 'עדכן עסקה';
@@ -1013,6 +1044,7 @@ onFreqChange();
 // Restore saved filter prefs
 const pr = state.prefs || {};
 document.getElementById('show-future').checked       = pr.showFuture !== false;
+document.getElementById('lock-order').checked        = pr.lockOrder    || false;
 document.getElementById('filter-type').value         = pr.filterType   || '';
 document.getElementById('filter-cat').value          = pr.filterCat    || '';
 document.getElementById('filter-method').value       = pr.filterMethod || '';
