@@ -1,4 +1,4 @@
-const CACHE = 'cheshbon-v25';
+const CACHE = 'cheshbon-v26';
 const BASE = '/Cheshbon-uvesh/';
 const ASSETS = [
   BASE,

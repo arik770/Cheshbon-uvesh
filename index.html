@@ -26,7 +26,9 @@ body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:var(--bg);color:v
 #header{background:var(--navy);color:#fff;padding:20px 20px 0;border-bottom:3px solid var(--navy2)}
 #header-inner{max-width:700px;margin:0 auto}
 #app-label{font-size:11px;letter-spacing:1.5px;color:var(--navy-light);text-transform:uppercase;margin-bottom:14px}
-#balance-strip{display:flex;align-items:flex-end;gap:24px;padding-bottom:18px;flex-wrap:wrap}
+#balance-strip{display:flex;flex-direction:column;gap:14px;padding-bottom:18px}
+#balance-row1{display:flex;align-items:flex-end;gap:24px;flex-wrap:wrap}
+#balance-row2{display:flex;align-items:flex-end;gap:16px;flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px}
 #balance-label{font-size:11px;color:var(--navy-light);margin-bottom:2px}
 #balance-anchor-info{font-size:10px;color:#5a7aaa;margin-top:2px}
 #balance-value{font-size:40px;font-weight:700;letter-spacing:-1px;line-height:1;transition:color .3s}
@@ -34,6 +36,8 @@ body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:var(--bg);color:v
 #balance-value.negative{color:#fca5a5}
 .stat-block .s-label{font-size:10px;color:var(--navy-light);margin-bottom:2px}
 .stat-block .s-value{font-size:17px;font-weight:600;padding-bottom:4px}
+#balance-row2 .stat-block .s-value{font-size:14px}
+#balance-row2 .stat-block .s-label{font-size:9px}
 .s-income{color:#6ee7b7}.s-expense{color:#fca5a5}
 #header-btns{display:flex;gap:8px;flex-wrap:wrap;padding-bottom:4px}
 .hdr-btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:#c7d8f0;border-radius:6px;padding:6px 12px;font-size:12px;cursor:pointer;transition:background .2s;white-space:nowrap}
@@ -154,27 +158,37 @@ body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:var(--bg);color:v
   <div id="header-inner">
     <div id="app-label">ניהול חשבון עו&quot;ש</div>
     <div id="balance-strip">
-      <div>
-        <div id="balance-label">יתרה נוכחית</div>
-        <div id="balance-value" class="positive">₪0.00</div>
-        <div id="balance-anchor-info">—</div>
+      <!-- Row 1: יתרה + חיסכון -->
+      <div id="balance-row1">
+        <div>
+          <div id="balance-label">יתרה נוכחית</div>
+          <div id="balance-value" class="positive">₪0.00</div>
+          <div id="balance-anchor-info">—</div>
+        </div>
+        <div class="stat-block" style="padding-right:16px;border-right:1px solid rgba(255,255,255,.1)">
+          <div class="s-label">חיסכון</div>
+          <div class="s-value" id="stat-savings" style="color:#a78bfa">—</div>
+          <div style="font-size:10px;color:#5a7aaa;margin-top:1px" id="stat-savings-info"></div>
+        </div>
       </div>
-      <div class="stat-block">
-        <div class="s-label">הכנסות (חודש נוכחי)</div>
-        <div class="s-value s-income" id="stat-income">₪0.00</div>
-      </div>
-      <div class="stat-block">
-        <div class="s-label">הוצאות (שולם)</div>
-        <div class="s-value s-expense" id="stat-expense">₪0.00</div>
-      </div>
-      <div class="stat-block">
-        <div class="s-label">הוצאות (מתוכנן)</div>
-        <div class="s-value" id="stat-expense-future" style="color:#fbbf24">₪0.00</div>
-      </div>
-      <div class="stat-block">
-        <div class="s-label">חיסכון</div>
-        <div class="s-value" id="stat-savings" style="color:#a78bfa">—</div>
-        <div style="font-size:10px;color:#5a7aaa;margin-top:1px" id="stat-savings-info"></div>
+      <!-- Row 2: monthly stats -->
+      <div id="balance-row2">
+        <div class="stat-block">
+          <div class="s-label">הכנסות</div>
+          <div class="s-value s-income" id="stat-income">₪0.00</div>
+        </div>
+        <div class="stat-block">
+          <div class="s-label">הוצאות (שולם)</div>
+          <div class="s-value s-expense" id="stat-expense">₪0.00</div>
+        </div>
+        <div class="stat-block">
+          <div class="s-label">מתוכנן</div>
+          <div class="s-value" id="stat-expense-future" style="color:#fbbf24">₪0.00</div>
+        </div>
+        <div class="stat-block">
+          <div class="s-label">יתרה חודשית</div>
+          <div class="s-value" id="stat-month-balance" style="color:#e2e8f0">₪0.00</div>
+        </div>
       </div>
     </div>
     <div id="header-btns">
@@ -561,9 +575,13 @@ function updateHeader() {
       }
     }
   }
+  const monthBalance = pIncome - pExpense - pExpenseFuture;
   document.getElementById('stat-income').textContent = fmt(pIncome);
   document.getElementById('stat-expense').textContent = fmt(pExpense);
   document.getElementById('stat-expense-future').textContent = fmt(pExpenseFuture);
+  const mb = document.getElementById('stat-month-balance');
+  mb.textContent = fmt(monthBalance);
+  mb.style.color = monthBalance >= 0 ? '#6ee7b7' : '#fca5a5';
 
   const bv=document.getElementById('balance-value'), bi=document.getElementById('balance-anchor-info');
   if(balance===null){ bv.textContent='—'; bv.className=''; bi.textContent='לחץ "עדכן יתרה" להגדרה'; }
