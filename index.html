@@ -730,15 +730,25 @@ function renderTable(){
     // Installment info
     const instInfo = tx.instTotal ? currentInstallment(tx) : null;
 
+    const clr = 'color:#374151;font-size:11px';
+
     // Row 1: תאריך עסקה + יום חיוב
-    const row1 = `<span style="color:var(--muted);font-size:11px">עסקה: <b style="color:#e2e8f0">${dateStr(tx.date)}</b>${tx.billingDay ? ` · יום ${billingWord}: <b style="color:var(--navy2)">${tx.billingDay}</b>` : ''}</span>`;
+    const row1parts = [`עסקה: ${dateStr(tx.date)}`];
+    if (tx.billingDay) row1parts.push(`יום ${billingWord}: ${tx.billingDay}`);
+    const row1 = `<span style="${clr}">${row1parts.join(' · ')}</span>`;
 
-    // Row 2: prev billing + next billing (only for recurring)
-    const row2 = isRecurring
-      ? `<span style="color:var(--muted);font-size:10px">${prevBillingDate ? `${billingWord} קודם: ${dateStr(prevBillingDate)}` : ''}${prevBillingDate && nextBillingDate ? ' · ' : ''}${nextBillingDate ? `${billingWord} הבא: <b style="color:#6ee7b7">${dateStr(nextBillingDate)}</b>` : ''}</span>`
-      : (tx.billingDay ? `<span style="color:var(--muted);font-size:10px">${billingWord}: <b style="color:var(--navy2)">${dateStr(displayEffDate)}</b></span>` : '');
+    // Row 2: prev + next billing (recurring only)
+    let row2 = '';
+    if (isRecurring) {
+      const row2parts = [];
+      if (prevBillingDate) row2parts.push(`${billingWord} קודם: ${dateStr(prevBillingDate)}`);
+      if (nextBillingDate) row2parts.push(`${billingWord} הבא: ${dateStr(nextBillingDate)}`);
+      if (row2parts.length) row2 = `<span style="${clr}">${row2parts.join(' · ')}</span>`;
+    } else if (tx.billingDay) {
+      row2 = `<span style="${clr}">${billingWord}: ${dateStr(displayEffDate)}</span>`;
+    }
 
-    const dateDisplay = `<div>${row1}</div>${row2 ? `<div style="margin-top:1px">${row2}</div>` : ''}${instInfo ? `<div style="margin-top:1px;font-size:10px;color:#a78bfa">תשלום ${instInfo.current} מתוך ${instInfo.total}</div>` : ''}`;
+    const dateDisplay = `<div>${row1}</div>${row2 ? `<div style="margin-top:1px">${row2}</div>` : ''}${instInfo ? `<div style="margin-top:1px;font-size:11px;color:#374151">תשלום ${instInfo.current} מתוך ${instInfo.total}</div>` : ''}`;
 
     const actHtml=pendingDelete[tx.id]
       ?`<span class="confirm-del"><span style="font-size:11px;color:var(--expense)">למחוק?</span>
@@ -754,10 +764,12 @@ function renderTable(){
       ${locked?'<div style="width:12px"></div>':'<div class="tx-drag-handle" title="גרור">⠿</div>'}
       <div class="tx-card-body">
         <div class="tx-card-top" style="align-items:flex-start">
-          <div class="tx-card-date">${dateDisplay}</div>
+          <div style="flex:1;min-width:0">
+            ${tx.description?`<div class="tx-card-desc">${escHtml(tx.description)}</div>`:''}
+          </div>
           <span class="tx-card-amount ${amtClass}" style="flex-shrink:0;margin-right:8px">${isIncome?'+':'−'}${fmt(tx.amount)}</span>
         </div>
-        ${tx.description?`<div class="tx-card-desc">${escHtml(tx.description)}</div>`:''}
+        <div class="tx-card-date" style="margin-bottom:5px">${dateDisplay}</div>
         <div class="tx-card-meta">${tags.join('')}${actHtml}</div>
       </div>
     </div>`;
