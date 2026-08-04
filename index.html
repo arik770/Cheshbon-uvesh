@@ -851,16 +851,7 @@ function resetForm(){
 function editRow(id){
   const tx=state.transactions.find(x=>x.id===id);
   if(!tx) return;
-  const isRecurring=tx.freq&&tx.freq!=='חד פעמי'&&tx.freq!=='תשלומים';
-  if(isRecurring){
-    // Show choice modal
-    const modal=document.getElementById('edit-recur-modal');
-    modal.classList.add('show');
-    document.getElementById('edit-from-now-btn').onclick=()=>{ modal.classList.remove('show'); startEdit(tx, true); };
-    document.getElementById('edit-all-btn').onclick=()=>{ modal.classList.remove('show'); startEdit(tx, false); };
-  } else {
-    startEdit(tx, false);
-  }
+  startEdit(tx, false);
 }
 
 function startEdit(tx, fromNow){
