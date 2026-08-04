@@ -482,6 +482,24 @@ function effectiveDate(txDate, billingDay) {
   return localDateStr(yr,mo,Math.min(billingDay,lastDay));
 }
 
+// ─── INSTALLMENT HELPER ──────────────────────────────────────────────────
+// Calculate which installment number we're currently on based on today
+function currentInstallment(tx) {
+  if (!tx.instTotal) return { current: tx.instCurrent || 1, total: tx.instTotal };
+  const today = todayStr();
+  const months = FREQ_MONTHS[tx.freq] || 1;
+  let cur = tx.date;
+  let num = 1;
+  while (num < tx.instTotal) {
+    const next = addMonths(cur, months);
+    const effNext = effectiveDate(next, tx.billingDay);
+    if (effNext > today) break;
+    cur = next;
+    num++;
+  }
+  return { current: num, total: tx.instTotal };
+}
+
 // ─── OCCURRENCES ─────────────────────────────────────────────────────────
 // For a recurring tx, generate all effective dates from startDate up to limitDate
 // Returns array of { txDate, effDate }
@@ -693,11 +711,34 @@ function renderTable(){
     if(tx.category) tags.push(`<span class="tag tag-cat">${escHtml(tx.category)}</span>`);
     if(tx.method)   tags.push(`<span class="tag tag-method">${escHtml(tx.method)}</span>`);
     if(isRecurring) tags.push(`<span class="tag tag-recur">${escHtml(tx.freq)}</span>`);
-    if(tx.instTotal) tags.push(`<span class="tag tag-inst">${tx.instCurrent}/${tx.instTotal}</span>`);
+    // installment shown in dateDisplay now
 
-    const dateDisplay = tx.billingDay
-      ? `<span style="color:var(--muted)">עסקה: ${dateStr(tx.date)}</span> <span style="color:var(--navy2);font-weight:600">חיוב: ${dateStr(displayEffDate)}</span>`
-      : `<span>${isRecurring?'הבא: ':''}<b>${dateStr(displayEffDate)}</b>${isRecurring?` (${escHtml(tx.freq)})`:''}</span>`;
+    const billingWord = isIncome ? 'זיכוי' : 'חיוב';
+
+    // Compute prev and next billing dates for recurring
+    let prevBillingDate = null, nextBillingDate = null;
+    if (isRecurring) {
+      const months = FREQ_MONTHS[tx.freq] || 1;
+      const allOccs = getOccurrences(tx, '2099-12-31');
+      const todayForCard = todayStr();
+      const pastOccs  = allOccs.filter(o => o.effDate <= todayForCard);
+      const futureOccs = allOccs.filter(o => o.effDate > todayForCard);
+      prevBillingDate = pastOccs.length  ? pastOccs[pastOccs.length-1].effDate  : null;
+      nextBillingDate = futureOccs.length ? futureOccs[0].effDate : null;
+    }
+
+    // Installment info
+    const instInfo = tx.instTotal ? currentInstallment(tx) : null;
+
+    // Row 1: תאריך עסקה + יום חיוב
+    const row1 = `<span style="color:var(--muted);font-size:11px">עסקה: <b style="color:#e2e8f0">${dateStr(tx.date)}</b>${tx.billingDay ? ` · יום ${billingWord}: <b style="color:var(--navy2)">${tx.billingDay}</b>` : ''}</span>`;
+
+    // Row 2: prev billing + next billing (only for recurring)
+    const row2 = isRecurring
+      ? `<span style="color:var(--muted);font-size:10px">${prevBillingDate ? `${billingWord} קודם: ${dateStr(prevBillingDate)}` : ''}${prevBillingDate && nextBillingDate ? ' · ' : ''}${nextBillingDate ? `${billingWord} הבא: <b style="color:#6ee7b7">${dateStr(nextBillingDate)}</b>` : ''}</span>`
+      : (tx.billingDay ? `<span style="color:var(--muted);font-size:10px">${billingWord}: <b style="color:var(--navy2)">${dateStr(displayEffDate)}</b></span>` : '');
+
+    const dateDisplay = `<div>${row1}</div>${row2 ? `<div style="margin-top:1px">${row2}</div>` : ''}${instInfo ? `<div style="margin-top:1px;font-size:10px;color:#a78bfa">תשלום ${instInfo.current} מתוך ${instInfo.total}</div>` : ''}`;
 
     const actHtml=pendingDelete[tx.id]
       ?`<span class="confirm-del"><span style="font-size:11px;color:var(--expense)">למחוק?</span>
@@ -712,9 +753,9 @@ function renderTable(){
     return `<div class="tx-card" data-id="${tx.id}" draggable="${!locked}">
       ${locked?'<div style="width:12px"></div>':'<div class="tx-drag-handle" title="גרור">⠿</div>'}
       <div class="tx-card-body">
-        <div class="tx-card-top">
-          <span class="tx-card-date">${dateDisplay}</span>
-          <span class="tx-card-amount ${amtClass}">${isIncome?'+':'−'}${fmt(tx.amount)}</span>
+        <div class="tx-card-top" style="align-items:flex-start">
+          <div class="tx-card-date">${dateDisplay}</div>
+          <span class="tx-card-amount ${amtClass}" style="flex-shrink:0;margin-right:8px">${isIncome?'+':'−'}${fmt(tx.amount)}</span>
         </div>
         ${tx.description?`<div class="tx-card-desc">${escHtml(tx.description)}</div>`:''}
         <div class="tx-card-meta">${tags.join('')}${actHtml}</div>
