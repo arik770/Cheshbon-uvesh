@@ -804,13 +804,10 @@ function startEdit(tx, fromNow){
   document.getElementById('f-inst-total').value=tx.instTotal||'';
   document.getElementById('f-inst-current').value=tx.instCurrent||'';
   onFreqChange();
-  if(!fromNow) {
-    editId=tx.id;
-    document.getElementById('form-panel-title').textContent='✏️ עריכת עסקה';
-    document.getElementById('submit-btn').textContent='עדכן';
-    document.getElementById('cancel-btn').style.display='';
-  }
-  document.getElementById('add-modal-title').textContent='✏️ עריכת עסקה';
+  editId = fromNow ? null : tx.id;
+  document.getElementById('add-modal-title').textContent = fromNow ? '➕ עסקה חדשה (מהיום)' : '✏️ עריכת עסקה';
+  document.getElementById('submit-btn').textContent = fromNow ? 'הוסף' : 'עדכן';
+  document.getElementById('cancel-btn').style.display = fromNow ? 'none' : '';
   openModal('add-modal');
   setTimeout(()=>document.getElementById('f-amount').focus(),80);
 }
