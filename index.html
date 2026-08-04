@@ -183,67 +183,7 @@ body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:var(--bg);color:v
 
 <div id="main">
 
-  <!-- FORM PANEL (hidden, content moved to modal) -->
-  <div style="display:none" id="form-panel">
-    <div id="form-panel-head"></div>
-    <div id="form-panel-body">
-      <div class="form-section-label">פרטי עסקה</div>
-      <div class="form-row">
-        <div class="field" style="width:125px"><label>תאריך עסקה</label><input type="date" id="f-date"></div>
-        <div class="field" style="width:75px"><label>יום חיוב</label><input type="number" id="f-billing-day" min="1" max="31" placeholder="1-31"></div>
-        <div class="field" style="flex:1;min-width:160px"><label>תיאור / פירוט</label><input type="text" id="f-desc" placeholder="לא חובה"></div>
-      </div>
-      <div class="form-row">
-        <div class="field" style="width:140px"><label>קטגוריה</label><select id="f-cat"></select></div>
-        <div class="field" style="width:100px"><label>סוג</label>
-          <select id="f-type">
-            <option value="הכנסה">הכנסה</option>
-            <option value="הוצאה" selected>הוצאה</option>
-          </select>
-        </div>
-        <div class="field" style="width:120px"><label>סכום (₪)</label><input type="number" id="f-amount" placeholder="0.00" min="0" step="0.01"></div>
-      </div>
-      <hr class="form-divider">
-      <div class="form-section-label">אמצעי תשלום ותדירות</div>
-      <div class="form-row">
-        <div class="field" style="width:140px">
-          <label>אמצעי תשלום</label>
-          <select id="f-method">
-            <option value="">— לא צוין —</option>
-            <option value="העברה">העברה בנקאית</option>
-            <option value="הוראת קבע">הוראת קבע</option>
-            <option value="הרשאה">הרשאה לחיוב</option>
-            <option value="אשראי">אשראי</option>
-            <option value="מזומן">מזומן</option>
-          </select>
-        </div>
-        <div class="field" style="width:140px">
-          <label>תדירות</label>
-          <select id="f-freq" onchange="onFreqChange()">
-            <option value="חד פעמי">חד פעמי</option>
-            <option value="חודשי">חודשי</option>
-            <option value="חודשיים">כל חודשיים</option>
-            <option value="שנתי">שנתי</option>
-          </select>
-        </div>
-        <div id="installment-toggle" style="display:none">
-          <div class="field" style="justify-content:flex-end;padding-bottom:2px">
-            <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer">
-              <input type="checkbox" id="f-is-installments" onchange="onFreqChange()"> תשלומים
-            </label>
-          </div>
-        </div>
-        <div id="installment-fields">
-          <div class="field" style="width:80px"><label>סה&quot;כ תשלומים</label><input type="number" id="f-inst-total" min="2" max="120" placeholder="12"></div>
-          <div class="field" style="width:80px"><label>תשלום נוכחי</label><input type="number" id="f-inst-current" min="1" max="120" placeholder="1"></div>
-        </div>
-      </div>
-      <div class="form-actions">
-        <button class="btn-primary" id="submit-btn" onclick="submitForm()">הוסף עסקה</button>
-        <button class="btn-secondary" id="cancel-btn" onclick="cancelEdit()" style="display:none">ביטול עריכה</button>
-      </div>
-    </div>
-  </div>
+
 
   <!-- TRANSACTIONS -->
   <div class="panel">
