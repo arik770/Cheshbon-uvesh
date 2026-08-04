@@ -74,11 +74,11 @@ body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:var(--bg);color:v
 .btn-icon.del:hover{background:var(--expense-bg)}
 
 /* TOOLBAR */
-#toolbar{margin-bottom:12px}
-#toolbar-row1{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-#toolbar select{padding:6px 9px;border-radius:6px;border:1px solid #d1d5db;font-size:12px;background:#fff;color:var(--text);font-family:inherit;direction:rtl}
+#toolbar{margin-bottom:10px}
+#toolbar-row1{display:flex;gap:4px;flex-wrap:nowrap;overflow-x:auto;align-items:center}
+#toolbar select{padding:4px 5px;border-radius:5px;border:1px solid #d1d5db;font-size:11px;background:#fff;color:var(--text);font-family:inherit;direction:rtl;min-width:0}
 #toolbar input[type=text]{padding:7px 10px;border-radius:6px;border:1px solid #d1d5db;font-size:13px;background:#fff;color:var(--text);font-family:inherit;direction:rtl}
-.toolbar-check{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px;white-space:nowrap}
+.toolbar-check{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:3px;white-space:nowrap;flex-shrink:0}
 #search-toggle-btn{padding:5px 9px;font-size:14px}
 
 /* CARDS */
@@ -95,9 +95,9 @@ body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:var(--bg);color:v
 .tx-card-date{font-size:11px;color:var(--muted)}
 .tx-card-amount{font-size:16px;font-weight:700}
 .tx-card-desc{font-size:13px;font-weight:600;color:var(--text);margin-bottom:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tx-card-meta{display:flex;flex-wrap:wrap;gap:3px;align-items:center}
+.tx-card-meta{display:flex;flex-wrap:wrap;gap:2px;align-items:center}
 .tx-card-actions{display:flex;gap:4px;margin-right:auto}
-.tag{display:inline-block;border-radius:12px;padding:2px 8px;font-size:11px;font-weight:600;white-space:nowrap}
+.tag{display:inline-block;border-radius:10px;padding:1px 6px;font-size:10px;font-weight:600;white-space:nowrap}
 .tag-cat{background:var(--tag-bg);color:var(--tag-color)}
 .tag-income{background:var(--income-bg);color:var(--income)}
 .tag-expense{background:var(--expense-bg);color:var(--expense)}
@@ -176,19 +176,17 @@ body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:var(--bg);color:v
     <div id="header-btns">
       <button class="hdr-btn" onclick="openModal('balance-modal')">⚖ עדכן יתרה</button>
       <button class="hdr-btn" onclick="openModal('savings-modal')">🏦 עדכן חיסכון</button>
+      <button class="hdr-btn" onclick="openAddModal()" style="background:rgba(110,231,183,.15);border-color:rgba(110,231,183,.4);color:#6ee7b7">➕ הוסף עסקה</button>
     </div>
   </div>
 </div>
 
 <div id="main">
 
-  <!-- FORM -->
-  <div class="panel" id="form-panel">
-    <div class="panel-head open" id="form-panel-head" onclick="togglePanel('form-panel')">
-      <span id="form-panel-title">➕ הוספת עסקה</span>
-      <span class="toggle-icon">▼</span>
-    </div>
-    <div class="panel-body" id="form-panel-body">
+  <!-- FORM PANEL (hidden, content moved to modal) -->
+  <div style="display:none" id="form-panel">
+    <div id="form-panel-head"></div>
+    <div id="form-panel-body">
       <div class="form-section-label">פרטי עסקה</div>
       <div class="form-row">
         <div class="field" style="width:125px"><label>תאריך עסקה</label><input type="date" id="f-date"></div>
@@ -272,12 +270,9 @@ body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:var(--bg);color:v
             <option value="מזומן">מזומן</option>
           </select>
           <label class="toolbar-check"><input type="checkbox" id="lock-order" onchange="renderTable()"> 🔒 נעל</label>
-          <button class="btn-icon" id="search-toggle-btn" onclick="toggleSearch()" title="חיפוש">🔍</button>
-          <button class="btn-secondary" onclick="clearFilters()" style="font-size:12px;padding:5px 9px">נקה</button>
+
         </div>
-        <div id="toolbar-row2" style="display:none;margin-top:8px">
-          <input type="text" id="search-box" placeholder="הקלד לחיפוש..." oninput="renderTable()" style="width:100%">
-        </div>
+<input type="hidden" id="search-box" value="">
       </div>
       <div id="cards-wrap">
         <div id="tbody"></div>
@@ -338,6 +333,71 @@ body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:var(--bg);color:v
           <input type="text" id="new-cat-input" placeholder="קטגוריה חדשה..." style="padding:7px 10px;border-radius:6px;border:1px solid #d1d5db;font-size:13px;font-family:inherit;direction:rtl;min-width:160px">
           <button class="btn-primary" onclick="addCategory()" style="padding:8px 14px">הוסף</button>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD/EDIT TRANSACTION MODAL -->
+<div class="modal-overlay" id="add-modal">
+  <div class="modal-box" style="width:min(520px,96vw);max-height:90vh;overflow-y:auto">
+    <h3 id="add-modal-title">➕ הוספת עסקה</h3>
+    <div style="margin-top:14px">
+      <div class="form-section-label">פרטי עסקה</div>
+      <div class="form-row" style="margin-bottom:10px">
+        <div class="field" style="width:125px"><label>תאריך עסקה</label><input type="date" id="f-date"></div>
+        <div class="field" style="width:75px"><label>יום חיוב</label><input type="number" id="f-billing-day" min="1" max="31" placeholder="1-31"></div>
+        <div class="field" style="flex:1;min-width:150px"><label>תיאור / פירוט</label><input type="text" id="f-desc" placeholder="לא חובה"></div>
+      </div>
+      <div class="form-row" style="margin-bottom:10px">
+        <div class="field" style="width:140px"><label>קטגוריה</label><select id="f-cat"></select></div>
+        <div class="field" style="width:95px"><label>סוג</label>
+          <select id="f-type">
+            <option value="הכנסה">הכנסה</option>
+            <option value="הוצאה" selected>הוצאה</option>
+          </select>
+        </div>
+        <div class="field" style="width:115px"><label>סכום (₪)</label><input type="number" id="f-amount" placeholder="0.00" min="0" step="0.01"></div>
+      </div>
+      <hr class="form-divider">
+      <div class="form-section-label">אמצעי תשלום ותדירות</div>
+      <div class="form-row">
+        <div class="field" style="width:140px">
+          <label>אמצעי תשלום</label>
+          <select id="f-method">
+            <option value="">— לא צוין —</option>
+            <option value="העברה">העברה בנקאית</option>
+            <option value="הוראת קבע">הוראת קבע</option>
+            <option value="הרשאה">הרשאה לחיוב</option>
+            <option value="אשראי">אשראי</option>
+            <option value="מזומן">מזומן</option>
+          </select>
+        </div>
+        <div class="field" style="width:130px">
+          <label>תדירות</label>
+          <select id="f-freq" onchange="onFreqChange()">
+            <option value="חד פעמי">חד פעמי</option>
+            <option value="חודשי">חודשי</option>
+            <option value="חודשיים">כל חודשיים</option>
+            <option value="שנתי">שנתי</option>
+          </select>
+        </div>
+        <div id="installment-toggle" style="display:none">
+          <div class="field" style="justify-content:flex-end;padding-bottom:2px">
+            <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer">
+              <input type="checkbox" id="f-is-installments" onchange="onFreqChange()"> תשלומים
+            </label>
+          </div>
+        </div>
+        <div id="installment-fields">
+          <div class="field" style="width:75px"><label>סה"כ</label><input type="number" id="f-inst-total" min="2" max="120" placeholder="12"></div>
+          <div class="field" style="width:75px"><label>נוכחי</label><input type="number" id="f-inst-current" min="1" max="120" placeholder="1"></div>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn-primary" id="submit-btn" onclick="submitForm()">הוסף עסקה</button>
+        <button class="btn-secondary" id="cancel-btn" onclick="cancelEdit()" style="display:none">ביטול עריכה</button>
+        <button class="btn-secondary" onclick="closeModal('add-modal')">סגור</button>
       </div>
     </div>
   </div>
@@ -612,13 +672,6 @@ function savePrefs() {
   save();
 }
 
-function toggleSearch(){
-  const row2=document.getElementById('toolbar-row2'), box=document.getElementById('search-box');
-  const open=row2.style.display==='none';
-  row2.style.display=open?'':'none';
-  if(open) box.focus(); else { box.value=''; renderTable(); }
-}
-
 function getFiltered(){
   const q=document.getElementById('search-box').value.trim().toLowerCase();
   const ft=document.getElementById('filter-type').value;
@@ -759,6 +812,7 @@ function submitForm(){
   } else {
     state.transactions.unshift(entry);
     resetForm();
+    closeModal('add-modal');
   }
   save(); updateHeader(); renderTable(); renderForecast();
 }
@@ -816,15 +870,14 @@ function startEdit(tx, fromNow){
     document.getElementById('submit-btn').textContent='עדכן';
     document.getElementById('cancel-btn').style.display='';
   }
-  document.getElementById('form-panel-body').classList.remove('hidden');
-  document.getElementById('form-panel-head').classList.add('open');
-  window.scrollTo({top:0,behavior:'smooth'});
-  document.getElementById('f-amount').focus();
+  document.getElementById('add-modal-title').textContent='✏️ עריכת עסקה';
+  openModal('add-modal');
+  setTimeout(()=>document.getElementById('f-amount').focus(),80);
 }
 
 function cancelEdit(){
   editId=null;
-  document.getElementById('form-panel-title').textContent='➕ הוספת עסקה';
+  document.getElementById('add-modal-title').textContent='➕ הוספת עסקה';
   document.getElementById('submit-btn').textContent='הוסף עסקה';
   document.getElementById('cancel-btn').style.display='none';
   resetForm();
@@ -877,6 +930,13 @@ function closeModal(id){ document.getElementById(id).classList.remove('show'); }
 document.querySelectorAll('.modal-overlay').forEach(el=>{
   el.addEventListener('click',e=>{ if(e.target===el) el.classList.remove('show'); });
 });
+
+function openAddModal(){
+  cancelEdit();
+  document.getElementById('add-modal-title').textContent='➕ הוספת עסקה';
+  openModal('add-modal');
+  setTimeout(()=>document.getElementById('f-amount').focus(),80);
+}
 
 function saveBalance(){
   const val=parseFloat(document.getElementById('modal-balance-val').value);
