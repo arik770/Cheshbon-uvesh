@@ -164,8 +164,12 @@ body{font-family:'Segoe UI',Tahoma,Arial,sans-serif;background:var(--bg);color:v
         <div class="s-value s-income" id="stat-income">₪0.00</div>
       </div>
       <div class="stat-block">
-        <div class="s-label">הוצאות (חודש נוכחי)</div>
+        <div class="s-label">הוצאות (שולם)</div>
         <div class="s-value s-expense" id="stat-expense">₪0.00</div>
+      </div>
+      <div class="stat-block">
+        <div class="s-label">הוצאות (מתוכנן)</div>
+        <div class="s-value" id="stat-expense-future" style="color:#fbbf24">₪0.00</div>
       </div>
       <div class="stat-block">
         <div class="s-label">חיסכון</div>
@@ -543,17 +547,23 @@ function updateHeader() {
   const balance = computeBalance(today);
   const {start:bpS, end:bpE} = currentBillingPeriod();
 
-  // Period income/expense: sum occurrences whose effDate falls in billing period <= today
-  let pIncome=0, pExpense=0;
+  // Period income/expense: sum occurrences whose effDate falls in billing period
+  let pIncome=0, pExpense=0, pExpenseFuture=0;
   for (const tx of state.transactions) {
     const occs = getOccurrences(tx, bpE);
     for (const {effDate} of occs) {
-      if (effDate < bpS || effDate > today) continue;
-      if (tx.type==='הכנסה') pIncome+=tx.amount; else pExpense+=tx.amount;
+      if (effDate < bpS || effDate > bpE) continue;
+      if (tx.type==='הכנסה') {
+        if (effDate <= today) pIncome += tx.amount;
+      } else {
+        if (effDate <= today) pExpense += tx.amount;
+        else pExpenseFuture += tx.amount;
+      }
     }
   }
   document.getElementById('stat-income').textContent = fmt(pIncome);
   document.getElementById('stat-expense').textContent = fmt(pExpense);
+  document.getElementById('stat-expense-future').textContent = fmt(pExpenseFuture);
 
   const bv=document.getElementById('balance-value'), bi=document.getElementById('balance-anchor-info');
   if(balance===null){ bv.textContent='—'; bv.className=''; bi.textContent='לחץ "עדכן יתרה" להגדרה'; }
